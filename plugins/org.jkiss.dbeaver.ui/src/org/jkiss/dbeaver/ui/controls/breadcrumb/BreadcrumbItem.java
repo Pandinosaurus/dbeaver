@@ -37,6 +37,7 @@ import org.jkiss.dbeaver.ui.UIIcon;
 import org.jkiss.dbeaver.ui.UIUtils;
 import org.jkiss.dbeaver.ui.controls.DoubleClickMouseAdapter;
 import org.jkiss.dbeaver.utils.NLS;
+import org.jkiss.utils.CommonUtils;
 
 final class BreadcrumbItem extends Item {
     private static final int DROP_DOWN_MAX_ITEMS = 30;
@@ -216,7 +217,7 @@ final class BreadcrumbItem extends Item {
     private void showMenu() {
         Point location = detailComposite.toDisplay(0, 0);
 
-        if ((viewer.getStyle() & SWT.TOP) != 0) {
+        if (CommonUtils.isBitSet(viewer.getStyle(), SWT.TOP)) {
             // Adjust the location so the menu won't cover the viewer
             location.y += detailComposite.getSize().y;
         }

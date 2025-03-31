@@ -59,6 +59,11 @@ public class BreadcrumbViewer extends StructuredViewer {
         container.setLayoutData(GridDataFactory.fillDefaults().grab(true, true).create());
         container.setLayout(GridLayoutFactory.fillDefaults().spacing(0, 0).create());
         container.addListener(SWT.Resize, e -> refresh());
+
+        if (style != SWT.TOP && style != SWT.BOTTOM) {
+            throw new IllegalArgumentException("Invalid style bits");
+        }
+
         this.style = style;
     }
 
