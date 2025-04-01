@@ -125,8 +125,6 @@ public class EntityEditor extends MultiPageDatabaseEditor
     private final Map<IEditorPart, IEditorActionBarContributor> actionContributors = new HashMap<>();
     private volatile boolean saveInProgress = false;
 
-    private BreadcrumbViewer breadcrumbViewer;
-
     public EntityEditor() {
         if (defaultPageMap == null) {
             defaultPageMap = loadTabsConfiguration();
