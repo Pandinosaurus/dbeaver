@@ -57,7 +57,7 @@ public class BreadcrumbTrim {
         var viewer = new NodeBreadcrumbViewer(parent, SWT.BOTTOM);
 
         installListeners(viewer);
-        updateElementVisibility();
+        UIUtils.asyncExec(BreadcrumbTrim::updateElementVisibility);
     }
 
     private static void updateElementVisibility() {
