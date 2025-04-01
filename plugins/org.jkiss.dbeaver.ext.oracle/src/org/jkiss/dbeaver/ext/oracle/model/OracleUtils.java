@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2024 DBeaver Corp and others
+ * Copyright (C) 2010-2025 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -237,6 +237,41 @@ public class OracleUtils {
                 "' for '" + object.getFullyQualifiedName(DBPEvaluationContext.DDL) + "': " + e.getMessage());
         }
         return ddl;
+    }
+
+    public enum DBMSMetaGrantedObjectType {
+        SYSTEM_GRANT,
+        ROLE_GRANT,
+        OBJECT_GRANT
+    }
+
+    public static String invokeDBMSMetadataGetGrantedDDL(JDBCSession session, OracleGrantee grantee, DBMSMetaGrantedObjectType dependentObjectType) {
+        String ddl = "";
+        try (JDBCPreparedStatement dbStat = session.prepareStatement(
+            "SELECT DBMS_METADATA.GET_GRANTED_DDL(?,?) TXT FROM DUAL")) {
+            dbStat.setString(1, dependentObjectType.name());
+            dbStat.setString(2, grantee.getName());
+            try (JDBCResultSet dbResult = dbStat.executeQuery()) {
+                if (dbResult.next()) {
+                    ddl = dbResult.getString(1).trim();
+                }
+            }
+        } catch (Exception e) {
+            // No dependent index DDL or something went wrong
+            log.debug("Error reading dependent DDL '" + dependentObjectType +
+                "' for '" + grantee.getName() + "': " + e.getMessage());
+        }
+        return ddl;
+    }
+
+    public static void addDDLLine(StringBuilder sql, String ddl) {
+        if (!CommonUtils.isEmpty(ddl)) {
+            sql.append("\n").append(ddl);
+            if (!ddl.endsWith(";")) {
+                sql.append(";");
+            }
+            sql.append("\n");
+        }
     }
 
     private static String addCommentsToDDL(DBRProgressMonitor monitor, OracleTableBase object, String ddl) {
