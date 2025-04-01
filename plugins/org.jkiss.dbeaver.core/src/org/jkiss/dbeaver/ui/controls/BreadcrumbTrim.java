@@ -56,10 +56,8 @@ public class BreadcrumbTrim {
     public void createControls(Composite parent) {
         var viewer = new NodeBreadcrumbViewer(parent, SWT.BOTTOM);
 
-        UIUtils.asyncExec(() -> {
-            installListeners(viewer);
-            updateElementVisibility();
-        });
+        installListeners(viewer);
+        updateElementVisibility();
     }
 
     private static void updateElementVisibility() {
