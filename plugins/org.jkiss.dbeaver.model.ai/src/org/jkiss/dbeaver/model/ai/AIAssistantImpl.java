@@ -206,16 +206,15 @@ public class AIAssistantImpl implements AIAssistant {
             request.engine() :
             getActiveEngine();
 
-        DAIChatMessage e1 = DAIChatMessage.systemMessage(
-            metadataProcessor.describeContext(
-                monitor,
-                request.context(),
-                formatter(),
-                engine.getMaxContextSize(monitor) - AIConstants.MAX_RESPONSE_TOKENS
-            )
-        );
         List<DAIChatMessage> chatMessages = List.of(
-            e1,
+            DAIChatMessage.systemMessage(
+                metadataProcessor.describeContext(
+                    monitor,
+                    request.context(),
+                    formatter(),
+                    engine.getMaxContextSize(monitor) - AIConstants.MAX_RESPONSE_TOKENS
+                )
+            ),
             DAIChatMessage.userMessage(request.text())
         );
 
