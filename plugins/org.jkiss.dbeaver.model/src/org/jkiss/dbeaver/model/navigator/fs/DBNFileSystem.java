@@ -154,6 +154,7 @@ public class DBNFileSystem extends DBNNode implements DBNLazyNode
         @NotNull DBRProgressMonitor monitor,
         @Nullable DBNFileSystemRoot[] mergeWith
     ) throws DBException {
+        DBFVirtualFileSystem fileSystem = this.fileSystem;
         if (fileSystem == null) { // when app stops - fileSystem is null
             return new DBNFileSystemRoot[0];
         }
