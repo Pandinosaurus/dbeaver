@@ -78,7 +78,7 @@ public class BreadcrumbTrim {
         boolean dirty = false;
 
         var breadcrumbsElement = modelService.find(BREADCRUMBS_ID, model);
-        var breadcrumbsVisible = BreadcrumbLocation.fromPreferences(store) == BreadcrumbLocation.IN_STATUS_BAR;
+        var breadcrumbsVisible = BreadcrumbLocation.get(store) == BreadcrumbLocation.IN_STATUS_BAR;
         if (breadcrumbsElement != null && breadcrumbsElement.isToBeRendered() != breadcrumbsVisible) {
             breadcrumbsElement.setToBeRendered(breadcrumbsVisible);
             dirty = true;

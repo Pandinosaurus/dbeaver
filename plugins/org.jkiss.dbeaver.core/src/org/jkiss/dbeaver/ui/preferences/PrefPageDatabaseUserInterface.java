@@ -279,7 +279,7 @@ public class PrefPageDatabaseUserInterface extends AbstractPrefPage implements I
             }
         }
 
-        BreadcrumbLocation breadcrumbLocation = DatabaseEditorPreferences.BreadcrumbLocation.fromPreferences(store);
+        BreadcrumbLocation breadcrumbLocation = DatabaseEditorPreferences.BreadcrumbLocation.get(store);
         statusBarShowBreadcrumbsCheck.setSelection(breadcrumbLocation != DatabaseEditorPreferences.BreadcrumbLocation.HIDDEN);
         statusBarBreadcrumbPositionCombo.select(breadcrumbLocation == DatabaseEditorPreferences.BreadcrumbLocation.IN_EDITORS ? 1 : 0);
         statusBarBreadcrumbPositionCombo.setEnabled(statusBarShowBreadcrumbsCheck.getSelection());
@@ -303,8 +303,9 @@ public class PrefPageDatabaseUserInterface extends AbstractPrefPage implements I
             UIUtils.setComboSelection(clientTimezone, store.getDefaultString(ModelPreferences.CLIENT_TIMEZONE));
         }
 
-        statusBarShowBreadcrumbsCheck.setSelection(true);
-        statusBarBreadcrumbPositionCombo.select(0);
+        BreadcrumbLocation location = BreadcrumbLocation.getDefault(store);
+        statusBarShowBreadcrumbsCheck.setSelection(location != BreadcrumbLocation.HIDDEN);
+        statusBarBreadcrumbPositionCombo.select(location == BreadcrumbLocation.IN_STATUS_BAR ? 0 : 1);
         statusBarShowStatusCheck.setSelection(store.getDefaultBoolean(DBeaverPreferences.UI_STATUS_BAR_SHOW_STATUS_LINE));
     }
 

@@ -1091,14 +1091,14 @@ public class EntityEditor extends MultiPageDatabaseEditor
         DBPPreferenceStore store = DBWorkbench.getPlatform().getPreferenceStore();
         DBPPreferenceListener listener = event -> {
             if (event.getProperty().equals(DatabaseEditorPreferences.UI_STATUS_BAR_SHOW_BREADCRUMBS)) {
-                composite.setVisible(BreadcrumbLocation.fromPreferences(store) == BreadcrumbLocation.IN_EDITORS);
+                composite.setVisible(BreadcrumbLocation.get(store) == BreadcrumbLocation.IN_EDITORS);
                 updateTopRightControl();
             }
         };
 
         store.addPropertyChangeListener(listener);
         composite.addDisposeListener(e -> store.removePropertyChangeListener(listener));
-        composite.setVisible(BreadcrumbLocation.fromPreferences(store) == BreadcrumbLocation.IN_EDITORS);
+        composite.setVisible(BreadcrumbLocation.get(store) == BreadcrumbLocation.IN_EDITORS);
 
         return composite;
     }

@@ -17,6 +17,7 @@
 package org.jkiss.dbeaver.ui.editors;
 
 import org.jkiss.code.NotNull;
+import org.jkiss.code.Nullable;
 import org.jkiss.dbeaver.model.preferences.DBPPreferenceStore;
 import org.jkiss.utils.CommonUtils;
 
@@ -30,9 +31,18 @@ public class DatabaseEditorPreferences {
         HIDDEN;
 
         @NotNull
-        public static BreadcrumbLocation fromPreferences(@NotNull DBPPreferenceStore store) {
-            String value = CommonUtils.notEmpty(store.getString(UI_STATUS_BAR_SHOW_BREADCRUMBS));
-            return switch (value) {
+        public static BreadcrumbLocation get(@NotNull DBPPreferenceStore store) {
+            return get(store.getString(UI_STATUS_BAR_SHOW_BREADCRUMBS));
+        }
+
+        @NotNull
+        public static BreadcrumbLocation getDefault(@NotNull DBPPreferenceStore store) {
+            return get(store.getDefaultString(UI_STATUS_BAR_SHOW_BREADCRUMBS));
+        }
+
+        @NotNull
+        private static BreadcrumbLocation get(@Nullable String value) {
+            return switch (CommonUtils.notEmpty(value)) {
                 case "HIDDEN", "false" -> HIDDEN;
                 case "IN_EDITORS" -> IN_EDITORS;
                 default -> IN_STATUS_BAR;
