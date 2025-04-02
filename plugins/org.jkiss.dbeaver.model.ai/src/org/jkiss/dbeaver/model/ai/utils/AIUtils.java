@@ -17,8 +17,12 @@
 package org.jkiss.dbeaver.model.ai.utils;
 
 import org.jkiss.code.NotNull;
+import org.jkiss.code.Nullable;
+import org.jkiss.dbeaver.DBException;
+import org.jkiss.dbeaver.Log;
 import org.jkiss.dbeaver.model.DBPEvaluationContext;
 import org.jkiss.dbeaver.model.DBPObject;
+import org.jkiss.dbeaver.model.DBPScriptObject;
 import org.jkiss.dbeaver.model.DBUtils;
 import org.jkiss.dbeaver.model.ai.AIConstants;
 import org.jkiss.dbeaver.model.ai.completion.DAIChatMessage;
@@ -31,15 +35,17 @@ import org.jkiss.dbeaver.model.struct.DBSEntity;
 import org.jkiss.dbeaver.model.struct.DBSEntityConstraint;
 import org.jkiss.dbeaver.model.struct.DBSObject;
 import org.jkiss.dbeaver.model.struct.DBSObjectContainer;
-import org.jkiss.dbeaver.model.struct.rdb.DBSProcedure;
-import org.jkiss.dbeaver.model.struct.rdb.DBSSchema;
-import org.jkiss.dbeaver.model.struct.rdb.DBSTableColumn;
+import org.jkiss.dbeaver.model.struct.rdb.*;
 import org.jkiss.utils.CommonUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public final class AIUtils {
+
+    private static final Log log = Log.getLog(AIUtils.class);
+
     /**
      * Counts tokens in the given list of messages.
      *
@@ -154,22 +160,61 @@ public final class AIUtils {
     }
 
     /**
-     * Check should object describe by AI.
+     * Checks if the given DBPObject is eligible for AI description.
+     *
+     * @param dbpObject the object to check
+     * @return true if the object can be described by AI, false otherwise
      */
-    public static boolean isDescribable(DBPObject dbpObject) {
+    public static boolean isDescribable(@Nullable DBPObject dbpObject) {
         return dbpObject instanceof DBSEntity
             || dbpObject instanceof DBSSchema
-            || dbpObject instanceof DBSProcedure
             || dbpObject instanceof DBSTableColumn
+            || dbpObject instanceof DBSProcedure
+            || dbpObject instanceof DBSTrigger
             || dbpObject instanceof DBSEntityConstraint;
     }
 
-    public static String getDBSObjectInfo(DBSObject dbsObject) {
+    /**
+     * Returns a formatted string with the type and full name of the DBSObject.
+     *
+     * @param dbsObject the DBSObject to format
+     */
+    public static String getDBSObjectInfo(@NotNull DBSObject dbsObject) {
         return (dbsObject instanceof DBSSchema ? "Schema" : DBUtils.getObjectTypeName(dbsObject))
             + " " + DBUtils.getObjectFullName(dbsObject, DBPEvaluationContext.DDL);
     }
 
-    public static int getMaxRequestTokens(DAICompletionEngine engine, DBRProgressMonitor monitor) {
+    /**
+     * Computes the maximum number of tokens available for a request based on the engine's context size.
+     *
+     * @param engine the completion engine
+     * @param monitor the progress monitor
+     */
+    public static int getMaxRequestTokens(@NotNull DAICompletionEngine engine, @NotNull DBRProgressMonitor monitor) {
         return engine.getMaxContextSize(monitor) - AIConstants.MAX_RESPONSE_TOKENS;
     }
+
+    /**
+     * Retrieves the DDL for the given DBSObject if applicable.
+     *
+     * @param object the DBSObject from which to retrieve the DDL
+     * @param monitor the progress monitor
+     */
+    public static String getObjectDDL(@Nullable DBSObject object, @NotNull DBRProgressMonitor monitor) {
+        if (object instanceof DBSProcedure
+            || object instanceof DBSTrigger
+            || object instanceof DBSEntityConstraint
+            || object instanceof DBSView
+        ) {
+            if (object instanceof DBPScriptObject scriptObject) {
+                try {
+                    return scriptObject.getObjectDefinitionText(monitor, Map.of());
+                } catch (DBException e) {
+                    log.debug(e);
+                }
+            }
+        }
+        return null;
+    }
+
 }
