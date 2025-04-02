@@ -111,10 +111,6 @@ public class OracleUser extends OracleGrantee implements DBAUser, DBSObjectLazy<
         return status;
     }
 
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
     @Property(viewable = true, order = 5)
     public Timestamp getCreateDate()
     {
