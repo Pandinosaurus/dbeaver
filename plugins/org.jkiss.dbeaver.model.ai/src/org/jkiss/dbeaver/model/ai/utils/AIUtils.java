@@ -17,12 +17,23 @@
 package org.jkiss.dbeaver.model.ai.utils;
 
 import org.jkiss.code.NotNull;
+import org.jkiss.dbeaver.model.DBPEvaluationContext;
+import org.jkiss.dbeaver.model.DBPObject;
+import org.jkiss.dbeaver.model.DBUtils;
+import org.jkiss.dbeaver.model.ai.AIConstants;
 import org.jkiss.dbeaver.model.ai.completion.DAIChatMessage;
 import org.jkiss.dbeaver.model.ai.completion.DAIChatRole;
+import org.jkiss.dbeaver.model.ai.completion.DAICompletionEngine;
 import org.jkiss.dbeaver.model.ai.format.IAIFormatter;
 import org.jkiss.dbeaver.model.exec.DBCExecutionContext;
 import org.jkiss.dbeaver.model.runtime.DBRProgressMonitor;
+import org.jkiss.dbeaver.model.struct.DBSEntity;
+import org.jkiss.dbeaver.model.struct.DBSEntityConstraint;
+import org.jkiss.dbeaver.model.struct.DBSObject;
 import org.jkiss.dbeaver.model.struct.DBSObjectContainer;
+import org.jkiss.dbeaver.model.struct.rdb.DBSProcedure;
+import org.jkiss.dbeaver.model.struct.rdb.DBSSchema;
+import org.jkiss.dbeaver.model.struct.rdb.DBSTableColumn;
 import org.jkiss.utils.CommonUtils;
 
 import java.util.ArrayList;
@@ -140,5 +151,25 @@ public final class AIUtils {
         }
 
         return formatter.postProcessGeneratedQuery(monitor, mainObject, executionContext, completionText).trim();
+    }
+
+    /**
+     * Check should object describe by AI.
+     */
+    public static boolean isDescribable(DBPObject dbpObject) {
+        return dbpObject instanceof DBSEntity
+            || dbpObject instanceof DBSSchema
+            || dbpObject instanceof DBSProcedure
+            || dbpObject instanceof DBSTableColumn
+            || dbpObject instanceof DBSEntityConstraint;
+    }
+
+    public static String getDBSObjectInfo(DBSObject dbsObject) {
+        return (dbsObject instanceof DBSSchema ? "Schema" : DBUtils.getObjectTypeName(dbsObject))
+            + " " + DBUtils.getObjectFullName(dbsObject, DBPEvaluationContext.DDL);
+    }
+
+    public static int getMaxRequestTokens(DAICompletionEngine engine, DBRProgressMonitor monitor) {
+        return engine.getMaxContextSize(monitor) - AIConstants.MAX_RESPONSE_TOKENS;
     }
 }
