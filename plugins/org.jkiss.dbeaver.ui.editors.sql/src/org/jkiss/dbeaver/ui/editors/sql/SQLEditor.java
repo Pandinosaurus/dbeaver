@@ -2788,15 +2788,6 @@ public class SQLEditor extends SQLEditorBase implements
                     return false;
                 }
             }
-        } else if (newTab && queries.size() > MAX_PARALLEL_QUERIES_NO_WARN) {
-            if (ConfirmationDialog.confirmAction(
-                getSite().getShell(),
-                ConfirmationDialog.WARNING, SQLPreferenceConstants.CONFIRM_MASS_PARALLEL_SQL,
-                ConfirmationDialog.CONFIRM,
-                queries.size()) != IDialogConstants.OK_ID
-            ) {
-                return false;
-            }
         }
 
 
