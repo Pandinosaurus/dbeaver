@@ -36,6 +36,7 @@ import org.jkiss.dbeaver.model.struct.DBSObject;
 import org.jkiss.dbeaver.model.struct.DBSObjectContainer;
 import org.jkiss.dbeaver.model.struct.DBSWrapper;
 import org.jkiss.dbeaver.runtime.DBWorkbench;
+import org.jkiss.utils.AlphanumericComparator;
 import org.jkiss.utils.ArrayUtils;
 import org.jkiss.utils.CommonUtils;
 
@@ -121,8 +122,7 @@ public class DBNUtils {
         return result;
     }
 
-    private static void sortNodes(DBNNode[] children)
-    {
+    private static void sortNodes(DBNNode[] children) {
         final DBPPreferenceStore prefStore = DBWorkbench.getPlatform().getPreferenceStore();
 
         // Sort children is we have this feature on in preferences
@@ -140,9 +140,11 @@ public class DBNUtils {
                 } else if (prefStore.getBoolean(ModelPreferences.NAVIGATOR_SORT_FOLDERS_FIRST)) {
                     Arrays.sort(children, NodeFolderComparator.INSTANCE);
                 }
+                if (!(firstChild instanceof DBNContainer)) {
+                    Arrays.sort(children, (o1, o2) -> AlphanumericComparator.getInstance().compare(o1.getName(), o2.getName()));
+                }
             }
         }
-
     }
 
     private static boolean isMergedEntity(DBNNode node) {
