@@ -31,10 +31,7 @@ import org.jkiss.dbeaver.model.navigator.meta.DBXTreeItem;
 import org.jkiss.dbeaver.model.navigator.meta.DBXTreeNode;
 import org.jkiss.dbeaver.model.preferences.DBPPreferenceStore;
 import org.jkiss.dbeaver.model.runtime.DBRProgressMonitor;
-import org.jkiss.dbeaver.model.struct.DBSEntity;
-import org.jkiss.dbeaver.model.struct.DBSObject;
-import org.jkiss.dbeaver.model.struct.DBSObjectContainer;
-import org.jkiss.dbeaver.model.struct.DBSWrapper;
+import org.jkiss.dbeaver.model.struct.*;
 import org.jkiss.dbeaver.runtime.DBWorkbench;
 import org.jkiss.utils.AlphanumericComparator;
 import org.jkiss.utils.ArrayUtils;
@@ -49,6 +46,8 @@ import java.util.*;
 public class DBNUtils {
 
     private static final Log log = Log.getLog(DBNUtils.class);
+    public static final Comparator<DBNNode> ALPHANUMERIC_COMPARATOR_COMPARATOR = (o1, o2) -> AlphanumericComparator.getInstance()
+        .compare(o1.getNodeDisplayName(), o2.getNodeDisplayName());
 
     public static DBNDatabaseNode getNodeByObject(DBSObject object) {
         DBNModel model = getNavigatorModel(object);
@@ -135,13 +134,14 @@ public class DBNUtils {
                     Arrays.sort(children, NodeFolderComparator.INSTANCE);
                 } else if (prefStore.getBoolean(ModelPreferences.NAVIGATOR_SORT_ALPHABETICALLY) || isMergedEntity(firstChild)) {
                     if (!(firstChild instanceof DBNContainer)) {
-                        Arrays.sort(children, NodeNameComparator.INSTANCE);
+                        Arrays.sort(children, ALPHANUMERIC_COMPARATOR_COMPARATOR);
                     }
                 } else if (prefStore.getBoolean(ModelPreferences.NAVIGATOR_SORT_FOLDERS_FIRST)) {
-                    Arrays.sort(children, NodeFolderComparator.INSTANCE);
-                }
-                if (!(firstChild instanceof DBNContainer)) {
-                    Arrays.sort(children, (o1, o2) -> AlphanumericComparator.getInstance().compare(o1.getName(), o2.getName()));
+                    if (firstChild instanceof DBSFolder) {
+                        Arrays.sort(children, NodeFolderComparator.INSTANCE);
+                    } else if (!(firstChild instanceof DBNContainer)) {
+                        Arrays.sort(children, ALPHANUMERIC_COMPARATOR_COMPARATOR);
+                    }
                 }
             }
         }
