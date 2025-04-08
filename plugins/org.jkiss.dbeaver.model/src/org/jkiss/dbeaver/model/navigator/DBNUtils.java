@@ -46,8 +46,6 @@ import java.util.*;
 public class DBNUtils {
 
     private static final Log log = Log.getLog(DBNUtils.class);
-    private static final Comparator<DBNNode> ALPHANUMERIC_COMPARATOR = (o1, o2) -> AlphanumericComparator.getInstance()
-        .compare(o1.getNodeDisplayName(), o2.getNodeDisplayName());
 
     public static DBNDatabaseNode getNodeByObject(DBSObject object) {
         DBNModel model = getNavigatorModel(object);
@@ -122,28 +120,34 @@ public class DBNUtils {
     }
 
     private static void sortNodes(DBNNode[] children) {
-        final DBPPreferenceStore prefStore = DBWorkbench.getPlatform().getPreferenceStore();
+        if (children.length == 0) {
+            return;
+        }
 
+        final DBPPreferenceStore prefStore = DBWorkbench.getPlatform().getPreferenceStore();
+        DBNNode firstChild = children[0];
         // Sort children is we have this feature on in preferences
         // and if children are not folders
-        if (children.length > 0) {
-            DBNNode firstChild = children[0];
-            boolean isResources = firstChild.getAdapter(Path.class) != null;
-            {
-                if (isResources) {
-                    Arrays.sort(children, NodeFolderComparator.INSTANCE);
-                } else if (prefStore.getBoolean(ModelPreferences.NAVIGATOR_SORT_ALPHABETICALLY) || isMergedEntity(firstChild)) {
-                    if (!(firstChild instanceof DBNContainer)) {
-                        Arrays.sort(children, ALPHANUMERIC_COMPARATOR);
-                    }
-                } else if (prefStore.getBoolean(ModelPreferences.NAVIGATOR_SORT_FOLDERS_FIRST)) {
-                    if (firstChild instanceof DBSFolder) {
-                        Arrays.sort(children, NodeFolderComparator.INSTANCE);
-                    } else if (!(firstChild instanceof DBNContainer)) {
-                        Arrays.sort(children, ALPHANUMERIC_COMPARATOR);
-                    }
+
+        if (firstChild.getAdapter(Path.class) != null) {
+            Arrays.sort(children, NodeFolderComparator.INSTANCE);
+            return;
+        }
+
+        if (firstChild instanceof DBNContainer) {
+            return;
+        }
+
+        if (prefStore.getBoolean(ModelPreferences.NAVIGATOR_SORT_ALPHABETICALLY)
+            || prefStore.getBoolean(ModelPreferences.NAVIGATOR_SORT_FOLDERS_FIRST)
+            || isMergedEntity(firstChild)) {
+            Arrays.sort(children, NodeFolderComparator.INSTANCE.thenComparing((o1, o2) -> {
+                if (o1 instanceof DBNContainer || o2 instanceof DBNContainer) {
+                    return 0;
                 }
-            }
+                return AlphanumericComparator.getInstance()
+                    .compare(o1.getNodeDisplayName(), o2.getNodeDisplayName());
+            }));
         }
     }
 
@@ -216,16 +220,9 @@ public class DBNUtils {
         return itemsMeta;
     }
 
-    private static class NodeNameComparator implements Comparator<DBNNode> {
-        static NodeNameComparator INSTANCE = new NodeNameComparator();
-        @Override
-        public int compare(DBNNode node1, DBNNode node2) {
-            return node1.getNodeDisplayName().compareToIgnoreCase(node2.getNodeDisplayName());
-        }
-    }
-
     private static class NodeFolderComparator implements Comparator<DBNNode> {
-        static NodeFolderComparator INSTANCE = new NodeFolderComparator();
+        static final NodeFolderComparator INSTANCE = new NodeFolderComparator();
+
         @Override
         public int compare(DBNNode node1, DBNNode node2) {
             int first = isFolderNode(node1) ? -1 : 1;
