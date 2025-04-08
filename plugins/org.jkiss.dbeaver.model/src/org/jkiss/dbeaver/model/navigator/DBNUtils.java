@@ -46,7 +46,7 @@ import java.util.*;
 public class DBNUtils {
 
     private static final Log log = Log.getLog(DBNUtils.class);
-    private static final Comparator<DBNNode> ALPHANUMERIC_COMPARATOR_COMPARATOR = (o1, o2) -> AlphanumericComparator.getInstance()
+    private static final Comparator<DBNNode> ALPHANUMERIC_COMPARATOR = (o1, o2) -> AlphanumericComparator.getInstance()
         .compare(o1.getNodeDisplayName(), o2.getNodeDisplayName());
 
     public static DBNDatabaseNode getNodeByObject(DBSObject object) {
@@ -134,13 +134,13 @@ public class DBNUtils {
                     Arrays.sort(children, NodeFolderComparator.INSTANCE);
                 } else if (prefStore.getBoolean(ModelPreferences.NAVIGATOR_SORT_ALPHABETICALLY) || isMergedEntity(firstChild)) {
                     if (!(firstChild instanceof DBNContainer)) {
-                        Arrays.sort(children, ALPHANUMERIC_COMPARATOR_COMPARATOR);
+                        Arrays.sort(children, ALPHANUMERIC_COMPARATOR);
                     }
                 } else if (prefStore.getBoolean(ModelPreferences.NAVIGATOR_SORT_FOLDERS_FIRST)) {
                     if (firstChild instanceof DBSFolder) {
                         Arrays.sort(children, NodeFolderComparator.INSTANCE);
                     } else if (!(firstChild instanceof DBNContainer)) {
-                        Arrays.sort(children, ALPHANUMERIC_COMPARATOR_COMPARATOR);
+                        Arrays.sort(children, ALPHANUMERIC_COMPARATOR);
                     }
                 }
             }
