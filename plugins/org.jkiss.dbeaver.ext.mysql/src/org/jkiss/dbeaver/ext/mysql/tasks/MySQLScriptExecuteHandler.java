@@ -19,7 +19,6 @@ package org.jkiss.dbeaver.ext.mysql.tasks;
 import org.eclipse.osgi.util.NLS;
 import org.jkiss.dbeaver.DBException;
 import org.jkiss.dbeaver.Log;
-import org.jkiss.dbeaver.ext.mysql.MySQLConstants;
 import org.jkiss.dbeaver.ext.mysql.MySQLUtils;
 import org.jkiss.dbeaver.ext.mysql.model.MySQLCatalog;
 import org.jkiss.dbeaver.model.DBPDataSource;
@@ -30,7 +29,6 @@ import org.jkiss.dbeaver.model.runtime.DBRProgressMonitor;
 import org.jkiss.dbeaver.model.runtime.DBRRunnableContext;
 import org.jkiss.dbeaver.model.task.DBTTask;
 import org.jkiss.dbeaver.registry.task.TaskPreferenceStore;
-import org.jkiss.dbeaver.utils.RuntimeUtils;
 
 import java.io.File;
 import java.io.IOException;
@@ -81,7 +79,7 @@ public class MySQLScriptExecuteHandler extends MySQLNativeToolHandler<MySQLScrip
 
     @Override
     public void fillProcessParameters(MySQLScriptExecuteSettings settings, MySQLCatalog arg, List<String> cmd) throws IOException {
-        File dumpBinary = MySQLUtils.getClientExecutablePath(settings, arg.getDataSource());
+        File dumpBinary = MySQLUtils.getClientExecutablePath(settings);
         String dumpPath = dumpBinary.getAbsolutePath();
         cmd.add(dumpPath);
         if (settings.getLogLevel() == MySQLScriptExecuteSettings.LogLevel.Debug) {

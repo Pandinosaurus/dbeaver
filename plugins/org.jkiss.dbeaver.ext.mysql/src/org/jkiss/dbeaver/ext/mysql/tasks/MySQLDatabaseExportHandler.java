@@ -22,7 +22,6 @@ import org.jkiss.dbeaver.Log;
 import org.jkiss.dbeaver.ext.mysql.MySQLConstants;
 import org.jkiss.dbeaver.ext.mysql.MySQLUtils;
 import org.jkiss.dbeaver.ext.mysql.model.MySQLTableBase;
-import org.jkiss.dbeaver.model.connection.DBPNativeClientLocation;
 import org.jkiss.dbeaver.model.fs.DBFUtils;
 import org.jkiss.dbeaver.model.runtime.DBRProgressMonitor;
 import org.jkiss.dbeaver.model.runtime.DBRRunnableContext;
@@ -96,7 +95,7 @@ public class MySQLDatabaseExportHandler extends MySQLNativeToolHandler<MySQLExpo
 
     @Override
     public void fillProcessParameters(MySQLExportSettings settings, MySQLDatabaseExportInfo arg, List<String> cmd) throws IOException {
-        File dumpBinary = MySQLUtils.getDumpExecutablePath(settings, arg.getDatabase().getDataSource());
+        File dumpBinary = MySQLUtils.getDumpExecutablePath(settings);
         String dumpPath = dumpBinary.getAbsolutePath();
         cmd.add(dumpPath);
         cmd.add(settings.getMethod().getCliOption());

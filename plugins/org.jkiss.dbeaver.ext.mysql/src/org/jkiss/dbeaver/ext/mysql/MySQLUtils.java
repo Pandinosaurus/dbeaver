@@ -192,25 +192,18 @@ public class MySQLUtils {
     }
 
     @NotNull
-    public static File getClientExecutablePath(
-        @NotNull AbstractNativeToolSettings<?> settings,
-        @NotNull MySQLDataSource dataSource
-    ) throws IOException {
-        return getExecutablePath(settings, dataSource, "mysql", "mariadb"); //$NON-NLS-1$ //$NON-NLS-2$
+    public static File getClientExecutablePath(@NotNull AbstractNativeToolSettings<?> settings) throws IOException {
+        return getExecutablePath(settings, "mysql", "mariadb"); //$NON-NLS-1$ //$NON-NLS-2$
     }
 
     @NotNull
-    public static File getDumpExecutablePath(
-        @NotNull AbstractNativeToolSettings<?> settings,
-        @NotNull MySQLDataSource dataSource
-    ) throws IOException {
-        return getExecutablePath(settings, dataSource, "mysqldump", "mariadb-dump"); //$NON-NLS-1$ //$NON-NLS-2$
+    public static File getDumpExecutablePath(@NotNull AbstractNativeToolSettings<?> settings) throws IOException {
+        return getExecutablePath(settings, "mysqldump", "mariadb-dump"); //$NON-NLS-1$ //$NON-NLS-2$
     }
 
     @NotNull
     private static File getExecutablePath(
         @NotNull AbstractNativeToolSettings<?> settings,
-        @NotNull MySQLDataSource dataSource,
         @NotNull String mysqlName,
         @NotNull String mariaName
     ) throws IOException {
@@ -218,13 +211,10 @@ public class MySQLUtils {
         if (location == null) {
             throw new IOException("MySQL client location is not specified");
         }
-        if (dataSource.isMariaDB()) {
-            try {
-                return RuntimeUtils.getNativeClientBinary(location, MySQLConstants.BIN_FOLDER, mariaName);
-            } catch (IOException ignored) {
-                // ignored
-            }
+        try {
+            return RuntimeUtils.getNativeClientBinary(location, MySQLConstants.BIN_FOLDER, mysqlName);
+        } catch (IOException ignored) {
+            return RuntimeUtils.getNativeClientBinary(location, MySQLConstants.BIN_FOLDER, mariaName);
         }
-        return RuntimeUtils.getNativeClientBinary(location, MySQLConstants.BIN_FOLDER, mysqlName);
     }
 }
