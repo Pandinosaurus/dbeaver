@@ -124,7 +124,7 @@ public class DBNUtils {
             return;
         }
 
-        final DBPPreferenceStore prefStore = DBWorkbench.getPlatform().getPreferenceStore();
+        DBPPreferenceStore prefStore = DBWorkbench.getPlatform().getPreferenceStore();
         DBNNode firstChild = children[0];
         // Sort children is we have this feature on in preferences
         // and if children are not folders
@@ -138,16 +138,23 @@ public class DBNUtils {
             return;
         }
 
-        if (prefStore.getBoolean(ModelPreferences.NAVIGATOR_SORT_ALPHABETICALLY)
-            || prefStore.getBoolean(ModelPreferences.NAVIGATOR_SORT_FOLDERS_FIRST)
-            || isMergedEntity(firstChild)) {
-            Arrays.sort(children, NodeFolderComparator.INSTANCE.thenComparing((o1, o2) -> {
+        Comparator<DBNNode> comparator = null;
+
+        if (prefStore.getBoolean(ModelPreferences.NAVIGATOR_SORT_ALPHABETICALLY)) {
+            comparator = NodeFolderComparator.INSTANCE;
+        }
+
+        if (prefStore.getBoolean(ModelPreferences.NAVIGATOR_SORT_FOLDERS_FIRST) || isMergedEntity(firstChild)) {
+            comparator = NodeFolderComparator.INSTANCE.thenComparing((o1, o2) -> {
                 if (o1 instanceof DBNContainer || o2 instanceof DBNContainer) {
                     return 0;
                 }
                 return AlphanumericComparator.getInstance()
                     .compare(o1.getNodeDisplayName(), o2.getNodeDisplayName());
-            }));
+            });
+        }
+        if (comparator != null) {
+            Arrays.sort(children, comparator);
         }
     }
 
