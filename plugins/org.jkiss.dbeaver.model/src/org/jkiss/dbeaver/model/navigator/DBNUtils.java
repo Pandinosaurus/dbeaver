@@ -46,7 +46,7 @@ import java.util.*;
 public class DBNUtils {
 
     private static final Log log = Log.getLog(DBNUtils.class);
-    public static final Comparator<DBNNode> ALPHANUMERIC_COMPARATOR_COMPARATOR = (o1, o2) -> AlphanumericComparator.getInstance()
+    private static final Comparator<DBNNode> ALPHANUMERIC_COMPARATOR_COMPARATOR = (o1, o2) -> AlphanumericComparator.getInstance()
         .compare(o1.getNodeDisplayName(), o2.getNodeDisplayName());
 
     public static DBNDatabaseNode getNodeByObject(DBSObject object) {
