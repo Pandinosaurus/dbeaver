@@ -27,6 +27,7 @@ public class AIAssistantDescriptor extends AbstractDescriptor {
     private final IConfigurationElement contributorConfig;
     private String id;
     private String replaces;
+    private ObjectType objectType;
 
     protected AIAssistantDescriptor(IConfigurationElement contributorConfig) {
         super(contributorConfig);
@@ -36,10 +37,10 @@ public class AIAssistantDescriptor extends AbstractDescriptor {
         if (!CommonUtils.isEmpty(replacesAttr)) {
             this.replaces = replacesAttr;
         }
+        this.objectType = new ObjectType(contributorConfig, RegistryConstants.ATTR_CLASS);
     }
 
     public AIAssistant createInstance() throws DBException {
-        var objectType = new ObjectType(contributorConfig, RegistryConstants.ATTR_CLASS);
         return objectType.createInstance(AIAssistant.class);
     }
 
