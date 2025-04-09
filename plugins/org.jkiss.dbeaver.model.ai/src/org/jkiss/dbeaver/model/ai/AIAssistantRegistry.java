@@ -16,17 +16,57 @@
  */
 package org.jkiss.dbeaver.model.ai;
 
+import org.eclipse.core.runtime.IExtensionRegistry;
+import org.eclipse.core.runtime.Platform;
+import org.jkiss.dbeaver.DBException;
+import org.jkiss.utils.CommonUtils;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 public class AIAssistantRegistry {
-    private static final AIAssistantRegistry INSTANCE = new AIAssistantRegistry();
 
-    public static AIAssistantRegistry getInstance() {
-        return INSTANCE;
+    private static AIAssistantRegistry instance = null;
+
+    public synchronized static AIAssistantRegistry getInstance() {
+        if (instance == null) {
+            instance = new AIAssistantRegistry(Platform.getExtensionRegistry());
+        }
+        return instance;
     }
 
-    private AIAssistantRegistry() {
+    private final Map<String, AIAssistantDescriptor> descriptorMap = new LinkedHashMap<>();
+    private final Map<String, String> replaceMap = new LinkedHashMap<>();
+
+    public AIAssistantRegistry(IExtensionRegistry registry) {
+        var extElements = registry.getConfigurationElementsFor("com.dbeaver.ai.assistant");
+        for (var ext : extElements) {
+            if ("assistant".equals(ext.getName())) {
+                var descriptor = new AIAssistantDescriptor(ext);
+                descriptorMap.put(descriptor.getId(), descriptor);
+
+                var replaces = descriptor.getReplaces();
+                if (!CommonUtils.isEmpty(replaces)) {
+                    for (String rl : replaces.split(",")) {
+                        replaceMap.put(rl, descriptor.getId());
+                    }
+                }
+            }
+        }
     }
 
-    public AIAssistant getAssistant() {
-        return new AIAssistantImpl();
+    public AIAssistant getAssistant(String id) throws DBException {
+        while (true) {
+            var replace = replaceMap.get(id);
+            if (replace == null) {
+                break;
+            }
+            id = replace;
+        }
+        var descriptor = descriptorMap.get(id);
+        if (descriptor == null) {
+            throw new DBException("AI assistant '" + id + "' not found");
+        }
+        return descriptor.createInstance();
     }
 }

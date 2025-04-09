@@ -77,7 +77,12 @@ public class AITranslateHandler extends AbstractHandler {
             return null;
         }
 
-        AIAssistant aiAssistant = AIAssistantRegistry.getInstance().getAssistant();
+        AIAssistant aiAssistant;
+        try {
+            aiAssistant = AIAssistantRegistry.getInstance().getAssistant(AIConstants.CORE_ASSISTANT);
+        } catch (DBException e) {
+            throw new RuntimeException(e);
+        }
 
         try {
             if (!aiAssistant.hasValidConfiguration()) {
@@ -203,7 +208,7 @@ public class AITranslateHandler extends AbstractHandler {
                     .build();
 
                 DAITranslateRequest daiTranslateRequest = new DAITranslateRequest(userInput, context);
-                AIAssistant aiAssistant = AIAssistantRegistry.getInstance().getAssistant();
+                AIAssistant aiAssistant = AIAssistantRegistry.getInstance().getAssistant(AIConstants.CORE_ASSISTANT);
                 sql.set(aiAssistant.translateTextToSql(monitor, daiTranslateRequest));
             } catch (Exception e) {
                 throw new InvocationTargetException(e);

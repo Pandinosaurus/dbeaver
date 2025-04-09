@@ -39,7 +39,8 @@ public class AIAssistantImpl implements AIAssistant {
     private final AISettingsRegistry settingsRegistry = AISettingsRegistry.getInstance();
     private final AIEngineRegistry engineRegistry = AIEngineRegistry.getInstance();
     private final AIFormatterRegistry formatterRegistry = AIFormatterRegistry.getInstance();
-    private final MetadataProcessor metadataProcessor = MetadataProcessor.INSTANCE;
+    private final AIAssistantRegistry assistantRegistry = AIAssistantRegistry.getInstance();
+    private static final MetadataProcessor metadataProcessor = MetadataProcessor.INSTANCE;
 
     /**
      * Chat with the AI assistant.
@@ -302,5 +303,9 @@ public class AIAssistantImpl implements AIAssistant {
 
     protected IAIFormatter formatter() throws DBException {
         return formatterRegistry.getFormatter(AIConstants.CORE_FORMATTER);
+    }
+
+    protected AIAssistant assistant() throws DBException {
+        return assistantRegistry.getAssistant(AIConstants.CORE_ASSISTANT);
     }
 }
