@@ -172,7 +172,6 @@ public class SQLEditor extends SQLEditorBase implements
     IStatefulEditor
 {
     private static final long SCRIPT_UI_UPDATE_PERIOD = 100;
-    private static final int MAX_PARALLEL_QUERIES_NO_WARN = 1;
 
     private static final int QUERIES_COUNT_FOR_NO_FETCH_RESULT_SET_CONFIRMATION = 100;
 
