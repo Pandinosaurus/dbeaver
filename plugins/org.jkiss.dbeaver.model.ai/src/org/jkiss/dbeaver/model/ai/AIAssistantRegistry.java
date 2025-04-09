@@ -16,6 +16,7 @@
  */
 package org.jkiss.dbeaver.model.ai;
 
+import org.eclipse.core.runtime.IConfigurationElement;
 import org.eclipse.core.runtime.IExtensionRegistry;
 import org.eclipse.core.runtime.Platform;
 import org.jkiss.dbeaver.DBException;
@@ -40,12 +41,12 @@ public class AIAssistantRegistry {
 
     public AIAssistantRegistry(IExtensionRegistry registry) {
         var extElements = registry.getConfigurationElementsFor("com.dbeaver.ai.assistant");
-        for (var ext : extElements) {
+        for (IConfigurationElement ext : extElements) {
             if ("assistant".equals(ext.getName())) {
-                var descriptor = new AIAssistantDescriptor(ext);
+                AIAssistantDescriptor descriptor = new AIAssistantDescriptor(ext);
                 descriptorMap.put(descriptor.getId(), descriptor);
 
-                var replaces = descriptor.getReplaces();
+                String replaces = descriptor.getReplaces();
                 if (!CommonUtils.isEmpty(replaces)) {
                     for (String rl : replaces.split(",")) {
                         replaceMap.put(rl, descriptor.getId());
@@ -57,13 +58,13 @@ public class AIAssistantRegistry {
 
     public AIAssistant getAssistant(String id) throws DBException {
         while (true) {
-            var replace = replaceMap.get(id);
+            String replace = replaceMap.get(id);
             if (replace == null) {
                 break;
             }
             id = replace;
         }
-        var descriptor = descriptorMap.get(id);
+        AIAssistantDescriptor descriptor = descriptorMap.get(id);
         if (descriptor == null) {
             throw new DBException("AI assistant '" + id + "' not found");
         }
