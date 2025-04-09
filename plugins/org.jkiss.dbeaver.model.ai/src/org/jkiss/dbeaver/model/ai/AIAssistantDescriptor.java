@@ -20,26 +20,34 @@ import org.eclipse.core.runtime.IConfigurationElement;
 import org.jkiss.dbeaver.DBException;
 import org.jkiss.dbeaver.model.impl.AbstractDescriptor;
 import org.jkiss.dbeaver.registry.RegistryConstants;
+import org.jkiss.utils.CommonUtils;
 
 public class AIAssistantDescriptor extends AbstractDescriptor {
 
     private final IConfigurationElement contributorConfig;
+    private String id;
+    private String replaces;
 
     protected AIAssistantDescriptor(IConfigurationElement contributorConfig) {
         super(contributorConfig);
         this.contributorConfig = contributorConfig;
-    }
-
-    public String getId() {
-        return contributorConfig.getAttribute("id");
-    }
-
-    String getReplaces() {
-        return contributorConfig.getAttribute("replaces");
+        this.id = contributorConfig.getAttribute(RegistryConstants.ATTR_ID);
+        String replacesAttr = contributorConfig.getAttribute("replaces");
+        if (!CommonUtils.isEmpty(replacesAttr)) {
+            this.replaces = replacesAttr;
+        }
     }
 
     public AIAssistant createInstance() throws DBException {
         var objectType = new ObjectType(contributorConfig, RegistryConstants.ATTR_CLASS);
         return objectType.createInstance(AIAssistant.class);
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    public String getReplaces() {
+        return replaces;
     }
 }
