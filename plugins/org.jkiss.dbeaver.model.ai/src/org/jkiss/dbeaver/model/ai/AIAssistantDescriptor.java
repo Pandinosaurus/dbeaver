@@ -24,14 +24,12 @@ import org.jkiss.utils.CommonUtils;
 
 public class AIAssistantDescriptor extends AbstractDescriptor {
 
-    private final IConfigurationElement contributorConfig;
-    private String id;
+    private final String id;
     private String replaces;
-    private ObjectType objectType;
+    private final ObjectType objectType;
 
     protected AIAssistantDescriptor(IConfigurationElement contributorConfig) {
         super(contributorConfig);
-        this.contributorConfig = contributorConfig;
         this.id = contributorConfig.getAttribute(RegistryConstants.ATTR_ID);
         String replacesAttr = contributorConfig.getAttribute("replaces");
         if (!CommonUtils.isEmpty(replacesAttr)) {
