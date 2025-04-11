@@ -19,6 +19,8 @@ package org.jkiss.dbeaver.model.security;
 
 public interface SMStandardMeta {
 
+    String KEY_META_PARAMS = "user-meta-parameters";
+
     String META_FIRST_NAME = "firstName";
     String META_LAST_NAME = "lastName";
     String META_USERNAME = "username";
