@@ -17,11 +17,14 @@
 package org.jkiss.dbeaver.model.ai.utils;
 
 import org.jkiss.code.NotNull;
+import org.jkiss.code.Nullable;
+import org.jkiss.dbeaver.DBException;
 import org.jkiss.dbeaver.model.ai.completion.DAIChatMessage;
 import org.jkiss.dbeaver.model.ai.completion.DAIChatRole;
 import org.jkiss.dbeaver.model.ai.format.IAIFormatter;
 import org.jkiss.dbeaver.model.exec.DBCExecutionContext;
 import org.jkiss.dbeaver.model.runtime.DBRProgressMonitor;
+import org.jkiss.dbeaver.model.secret.DBSSecretController;
 import org.jkiss.dbeaver.model.struct.DBSObjectContainer;
 import org.jkiss.utils.CommonUtils;
 
@@ -29,6 +32,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class AIUtils {
+    public static String getSecretValueOrDefault(@NotNull String secretId, @Nullable String defaultValue) throws DBException {
+        String secretValue = DBSSecretController.getGlobalSecretController().getPrivateSecretValue(secretId);
+        if (CommonUtils.isEmpty(secretValue)) {
+            return defaultValue;
+        }
+
+        return secretValue;
+    }
+
     /**
      * Counts tokens in the given list of messages.
      *

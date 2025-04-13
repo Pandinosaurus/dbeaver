@@ -34,6 +34,7 @@ import org.jkiss.dbeaver.model.runtime.DBRProgressMonitor;
 public class CopilotCompletionEngine implements DAICompletionEngine {
     private static final Log log = Log.getLog(CopilotCompletionEngine.class);
 
+    private final CopilotSettings settings;
     private final DisposableLazyValue<CopilotClient, DBException> client = new DisposableLazyValue<>() {
         @Override
         protected CopilotClient initialize() throws DBException {
@@ -48,9 +49,13 @@ public class CopilotCompletionEngine implements DAICompletionEngine {
 
     private volatile CopilotSessionToken sessionToken;
 
+    public CopilotCompletionEngine(CopilotSettings settings) {
+        this.settings = settings;
+    }
+
     @Override
     public int getMaxContextSize(@NotNull DBRProgressMonitor monitor) {
-        return OpenAIModel.getByName(CopilotSettings.INSTANCE.modelName()).getMaxTokens();
+        return OpenAIModel.getByName(settings.modelName()).getMaxTokens();
     }
 
     @Override
@@ -59,9 +64,9 @@ public class CopilotCompletionEngine implements DAICompletionEngine {
         @NotNull DAICompletionRequest request
     ) throws DBException {
         CopilotChatRequest chatRequest = CopilotChatRequest.builder()
-            .withModel(CopilotSettings.INSTANCE.modelName())
+            .withModel(settings.modelName())
             .withMessages(request.messages().stream().map(CopilotMessage::from).toList())
-            .withTemperature(CopilotSettings.INSTANCE.temperature())
+            .withTemperature(settings.temperature())
             .withStream(false)
             .withIntent(false)
             .withTopP(1)
@@ -74,12 +79,12 @@ public class CopilotCompletionEngine implements DAICompletionEngine {
 
     @Override
     public boolean hasValidConfiguration() {
-        return CopilotSettings.INSTANCE.isValidConfiguration();
+        return settings.isValidConfiguration();
     }
 
     @Override
     public boolean isLoggingEnabled() {
-        return CopilotSettings.INSTANCE.isLoggingEnabled();
+        return settings.isLoggingEnabled();
     }
 
     @Override
@@ -106,7 +111,7 @@ public class CopilotCompletionEngine implements DAICompletionEngine {
                 return sessionToken;
             }
 
-            return client.evaluate().sessionToken(monitor, CopilotSettings.INSTANCE.accessToken());
+            return client.evaluate().sessionToken(monitor, settings.accessToken());
         }
     }
 }

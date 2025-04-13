@@ -38,6 +38,7 @@ public class OpenAICompletionEngine implements DAICompletionEngine {
 
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
 
+    private final OpenAISettings settings;
     private final DisposableLazyValue<OpenAIClient, DBException> openAiService = new DisposableLazyValue<>() {
         @Override
         protected OpenAIClient initialize() {
@@ -50,9 +51,13 @@ public class OpenAICompletionEngine implements DAICompletionEngine {
         }
     };
 
+    public OpenAICompletionEngine(OpenAISettings settings) {
+        this.settings = settings;
+    }
+
     @Override
     public int getMaxContextSize(@NotNull DBRProgressMonitor monitor) {
-        return OpenAISettings.INSTANCE.model().getMaxTokens();
+        return 0;
     }
 
     @Override
@@ -75,12 +80,12 @@ public class OpenAICompletionEngine implements DAICompletionEngine {
 
     @Override
     public boolean hasValidConfiguration() {
-        return OpenAISettings.INSTANCE.isValidConfiguration();
+        return settings.isValidConfiguration();
     }
 
     @Override
     public boolean isLoggingEnabled() {
-        return OpenAISettings.INSTANCE.isLoggingEnabled();
+        return settings.isLoggingEnabled();
     }
 
     @NotNull
@@ -117,7 +122,7 @@ public class OpenAICompletionEngine implements DAICompletionEngine {
     }
 
     protected OpenAIClient createClient() {
-        OpenAiService aiService = new OpenAiService(OpenAISettings.INSTANCE.token(), TIMEOUT);
+        OpenAiService aiService = new OpenAiService(settings.getToken(), TIMEOUT);
 
         return new OpenAIClient() {
             @NotNull
@@ -141,11 +146,11 @@ public class OpenAICompletionEngine implements DAICompletionEngine {
     }
 
     protected String model() {
-        return OpenAISettings.INSTANCE.model().getName();
+        return settings.getModel().getName();
     }
 
     protected double temperature() {
-        return OpenAISettings.INSTANCE.temperature();
+        return settings.getTemperature();
     }
 
     private DBException mapHttpException(retrofit2.HttpException e) {

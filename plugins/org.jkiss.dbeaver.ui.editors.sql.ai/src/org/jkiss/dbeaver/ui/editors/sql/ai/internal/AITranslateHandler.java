@@ -66,7 +66,7 @@ public class AITranslateHandler extends AbstractHandler {
     public Object execute(ExecutionEvent event) throws ExecutionException {
         AIFeatures.SQL_AI_POPUP.use();
 
-        if (AISettingsRegistry.getInstance().getSettings().isAiDisabled()) {
+        if (AISettingsRegistry.getInstance().getSettings().aiDisabled()) {
             return null;
         }
         SQLEditor editor = RuntimeUtils.getObjectAdapter(HandlerUtil.getActiveEditor(event), SQLEditor.class);

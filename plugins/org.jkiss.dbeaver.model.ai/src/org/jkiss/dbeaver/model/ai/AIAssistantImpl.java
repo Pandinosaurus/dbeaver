@@ -232,7 +232,7 @@ public class AIAssistantImpl implements AIAssistant {
     }
 
     private DAICompletionEngine getActiveEngine() throws DBException {
-        return engineRegistry.getCompletionEngine(settingsRegistry.getSettings().getActiveEngine());
+        return engineRegistry.getCompletionEngine(settingsRegistry.getSettings().activeEngine());
     }
 
     private DAICompletionResponse requestCompletion(
