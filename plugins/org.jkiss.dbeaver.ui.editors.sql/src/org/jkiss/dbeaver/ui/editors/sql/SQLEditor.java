@@ -172,7 +172,6 @@ public class SQLEditor extends SQLEditorBase implements
     IStatefulEditor
 {
     private static final long SCRIPT_UI_UPDATE_PERIOD = 100;
-    private static final int MAX_PARALLEL_QUERIES_NO_WARN = 1;
 
     private static final int QUERIES_COUNT_FOR_NO_FETCH_RESULT_SET_CONFIRMATION = 100;
 
@@ -312,6 +311,7 @@ public class SQLEditor extends SQLEditorBase implements
             IResultSetController.RESULTS_CONTEXT_ID};
     }
 
+    @Nullable
     @Override
     public DBPDataSource getDataSource() {
         DBPDataSourceContainer container = getDataSourceContainer();
@@ -447,11 +447,13 @@ public class SQLEditor extends SQLEditorBase implements
                 // FIXME: this is a hack. We can't fire event on resource change so editor's state won't be updated in UI.
                 // FIXME: To update main toolbar and other controls we hade and show this editor
                 IWorkbenchPage page = getSite().getPage();
-                for (IEditorReference er : page.getEditorReferences()) {
-                    if (er.getEditor(false) == this) {
-                        page.hideEditor(er);
-                        page.showEditor(er);
-                        break;
+                if (page != null) {
+                    for (IEditorReference er : page.getEditorReferences()) {
+                        if (er.getEditor(false) == this) {
+                            page.hideEditor(er);
+                            page.showEditor(er);
+                            break;
+                        }
                     }
                 }
                 //page.activate(this);
@@ -2184,8 +2186,12 @@ public class SQLEditor extends SQLEditorBase implements
         SQLScriptContext parentContext = null;
         {
             DatabaseEditorContext parentEditorContext = EditorUtils.getEditorContext(editorInput);
-            if (parentEditorContext instanceof SQLNavigatorContext) {
-                parentContext = ((SQLNavigatorContext) parentEditorContext).getScriptContext();
+            if (parentEditorContext instanceof SQLNavigatorContext nc) {
+                parentContext = nc.getScriptContext();
+                if (nc.isReuseExecutionContext()) {
+                    DBCExecutionContext iec = nc.getExecutionContext();
+                    this.executionContextProvider = () -> iec;
+                }
             }
         }
         this.globalScriptContext = new SQLScriptContext(
@@ -2781,15 +2787,6 @@ public class SQLEditor extends SQLEditorBase implements
                     return false;
                 }
             }
-        } else if (newTab && queries.size() > MAX_PARALLEL_QUERIES_NO_WARN) {
-            if (ConfirmationDialog.confirmAction(
-                getSite().getShell(),
-                ConfirmationDialog.WARNING, SQLPreferenceConstants.CONFIRM_MASS_PARALLEL_SQL,
-                ConfirmationDialog.CONFIRM,
-                queries.size()) != IDialogConstants.OK_ID
-            ) {
-                return false;
-            }
         }
 
 
@@ -2963,10 +2960,16 @@ public class SQLEditor extends SQLEditorBase implements
             }
             if (confirmResult == IDialogConstants.YES_ID) {
                 for (int i = 0; i < tabsToClose.size(); i++) {
-                    if (i == 0 && keepFirstTab) {
-                        continue;
+                    if (i == 0 && tabsToClose.get(0).getData() instanceof SingleTabQueryProcessor sqp && keepFirstTab) {
+                        // to avoid concurrent modification exception
+                        List<QueryResultsContainer> results = new ArrayList<>(sqp.getResultContainers());
+                        results.stream().skip(1).forEach(QueryResultsContainer::dispose);
+                    } else {
+                        if (i == 0 && keepFirstTab) {
+                            continue;
+                        }
+                        tabsToClose.get(i).dispose();
                     }
-                    tabsToClose.get(i).dispose();
                 }
             }
             return confirmResult;
