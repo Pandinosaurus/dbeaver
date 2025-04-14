@@ -284,13 +284,9 @@ public class SpreadsheetPresentation extends AbstractPresentation
                 case CURRENT:
                     if (curRow != null && !recordMode) {
                         GridPos curPos = spreadsheet.getCursorPosition();
-                        // Find corresponding grid row
-                        IGridRow gridRow = spreadsheet.getRowByElement(curRow.getVisualNumber(), curRow);
-                        if (gridRow != null) {
-                            GridCell newCell = spreadsheet.posToCell(new GridPos(curPos.col, gridRow.getVisualPosition()));
-                            if (newCell != null) {
-                                spreadsheet.setCursor(newCell, false, true, true);
-                            }
+                        GridCell newCell = spreadsheet.posToCell(curPos);
+                        if (newCell != null) {
+                            spreadsheet.setCursor(newCell, false, true, true);
                         }
                     }
                     break;
