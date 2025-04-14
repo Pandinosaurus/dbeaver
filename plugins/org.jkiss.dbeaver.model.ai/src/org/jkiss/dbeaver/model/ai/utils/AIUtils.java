@@ -184,7 +184,7 @@ public final class AIUtils {
         String objectInfo = "";
         String objectFullName = DBUtils.getObjectFullName(dbsObject, DBPEvaluationContext.DDL);
         if (dbsObject instanceof DataSourceDescriptor) {
-            objectInfo = isPromptInfo ? objectFullName : "listed database tables";
+            objectInfo = isPromptInfo ? "db with following tables" : "listed database tables";
         } else if (dbsObject instanceof DBSSchema) {
             objectInfo = "Schema " + objectFullName;
         } else {
