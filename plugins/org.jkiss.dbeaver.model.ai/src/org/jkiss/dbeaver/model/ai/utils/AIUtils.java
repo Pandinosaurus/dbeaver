@@ -20,10 +20,7 @@ import org.jkiss.code.NotNull;
 import org.jkiss.code.Nullable;
 import org.jkiss.dbeaver.DBException;
 import org.jkiss.dbeaver.Log;
-import org.jkiss.dbeaver.model.DBPEvaluationContext;
-import org.jkiss.dbeaver.model.DBPObject;
-import org.jkiss.dbeaver.model.DBPScriptObject;
-import org.jkiss.dbeaver.model.DBUtils;
+import org.jkiss.dbeaver.model.*;
 import org.jkiss.dbeaver.model.ai.AIConstants;
 import org.jkiss.dbeaver.model.ai.completion.DAIChatMessage;
 import org.jkiss.dbeaver.model.ai.completion.DAIChatRole;
@@ -36,6 +33,7 @@ import org.jkiss.dbeaver.model.struct.DBSEntityConstraint;
 import org.jkiss.dbeaver.model.struct.DBSObject;
 import org.jkiss.dbeaver.model.struct.DBSObjectContainer;
 import org.jkiss.dbeaver.model.struct.rdb.*;
+import org.jkiss.dbeaver.registry.DataSourceDescriptor;
 import org.jkiss.utils.CommonUtils;
 
 import java.util.ArrayList;
@@ -165,7 +163,10 @@ public final class AIUtils {
      * @param dbpObject the object to check
      * @return true if the object can be described by AI, false otherwise
      */
-    public static boolean isDescribable(@Nullable DBPObject dbpObject) {
+    public static boolean isEligible(@Nullable DBPObject dbpObject) {
+        if (dbpObject instanceof DataSourceDescriptor descriptor) {
+            return descriptor.getDriver().isEmbedded();
+        }
         return dbpObject instanceof DBSEntity
             || dbpObject instanceof DBSSchema
             || dbpObject instanceof DBSTableColumn
@@ -179,9 +180,17 @@ public final class AIUtils {
      *
      * @param dbsObject the DBSObject to format
      */
-    public static String getDBSObjectInfo(@NotNull DBSObject dbsObject) {
-        return (dbsObject instanceof DBSSchema ? "Schema" : DBUtils.getObjectTypeName(dbsObject))
-            + " " + DBUtils.getObjectFullName(dbsObject, DBPEvaluationContext.DDL);
+    public static String getDBSObjectInfo(@NotNull DBSObject dbsObject, boolean isPromptInfo) {
+        String objectInfo = "";
+        String objectFullName = DBUtils.getObjectFullName(dbsObject, DBPEvaluationContext.DDL);
+        if (dbsObject instanceof DataSourceDescriptor) {
+            objectInfo = isPromptInfo ? objectFullName : "listed database tables";
+        } else if (dbsObject instanceof DBSSchema) {
+            objectInfo = "Schema " + objectFullName;
+        } else {
+            objectInfo = DBUtils.getObjectTypeName(dbsObject) + objectFullName;
+        }
+        return objectInfo;
     }
 
     /**
