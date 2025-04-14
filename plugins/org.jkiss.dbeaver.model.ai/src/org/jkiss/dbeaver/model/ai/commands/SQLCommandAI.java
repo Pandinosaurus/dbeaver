@@ -100,7 +100,7 @@ public class SQLCommandAI implements SQLControlCommandHandler {
         final DAICompletionContext aiContext = contextBuilder.build();
 
         CommandResult result = AIAssistantRegistry.getInstance()
-            .getAssistant(AIConstants.CORE_ASSISTANT)
+            .getAssistant()
             .command(monitor, new DAICommandRequest(prompt, aiContext));
 
         if (result.sql() == null && result.message() != null) {

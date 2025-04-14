@@ -306,6 +306,6 @@ public class AIAssistantImpl implements AIAssistant {
     }
 
     protected AIAssistant assistant() throws DBException {
-        return assistantRegistry.getAssistant(AIConstants.CORE_ASSISTANT);
+        return assistantRegistry.getAssistant();
     }
 }

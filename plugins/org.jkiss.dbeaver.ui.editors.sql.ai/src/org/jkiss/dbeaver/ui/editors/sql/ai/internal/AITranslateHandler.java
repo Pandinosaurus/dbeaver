@@ -80,7 +80,7 @@ public class AITranslateHandler extends AbstractHandler {
 
         AIAssistant aiAssistant;
         try {
-            aiAssistant = AIAssistantRegistry.getInstance().getAssistant(AIConstants.CORE_ASSISTANT);
+            aiAssistant = AIAssistantRegistry.getInstance().getAssistant();
         } catch (DBException e) {
             throw new IllegalArgumentException("Cannot find AI assistant", e);
         }
@@ -209,7 +209,7 @@ public class AITranslateHandler extends AbstractHandler {
                     .build();
 
                 DAITranslateRequest daiTranslateRequest = new DAITranslateRequest(userInput, context);
-                AIAssistant aiAssistant = AIAssistantRegistry.getInstance().getAssistant(AIConstants.CORE_ASSISTANT);
+                AIAssistant aiAssistant = AIAssistantRegistry.getInstance().getAssistant();
                 sql.set(aiAssistant.translateTextToSql(monitor, daiTranslateRequest));
             } catch (Exception e) {
                 throw new InvocationTargetException(e);

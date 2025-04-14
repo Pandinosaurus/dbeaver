@@ -36,38 +36,34 @@ public class AIAssistantRegistry {
         return instance;
     }
 
-    private final Map<String, AIAssistantDescriptor> descriptorMap = new LinkedHashMap<>();
-    private final Map<String, String> replaceMap = new LinkedHashMap<>();
+    private final AIAssistantDescriptor customAssistant;
+    private final AIAssistantDescriptor defaultAssistant;
 
     public AIAssistantRegistry(IExtensionRegistry registry) {
-        var extElements = registry.getConfigurationElementsFor("com.dbeaver.ai.assistant");
+        AIAssistantDescriptor customAssistantDescriptor = null;
+        AIAssistantDescriptor defaultAssistantDescriptor = null;
+        IConfigurationElement[] extElements = registry.getConfigurationElementsFor("com.dbeaver.ai.assistant");
         for (IConfigurationElement ext : extElements) {
             if ("assistant".equals(ext.getName())) {
                 AIAssistantDescriptor descriptor = new AIAssistantDescriptor(ext);
-                descriptorMap.put(descriptor.getId(), descriptor);
-
-                String replaces = descriptor.getReplaces();
-                if (!CommonUtils.isEmpty(replaces)) {
-                    for (String rl : replaces.split(",")) {
-                        replaceMap.put(rl, descriptor.getId());
-                    }
+                if (!CommonUtils.isEmpty(descriptor.getReplaces())) {
+                    customAssistantDescriptor = descriptor;
+                } else {
+                    defaultAssistantDescriptor = descriptor;
                 }
             }
         }
+        this.customAssistant = customAssistantDescriptor;
+        this.defaultAssistant = defaultAssistantDescriptor;
     }
 
-    public AIAssistant getAssistant(String id) throws DBException {
-        while (true) {
-            String replace = replaceMap.get(id);
-            if (replace == null) {
-                break;
-            }
-            id = replace;
+    public AIAssistant getAssistant() throws DBException {
+        if (customAssistant != null) {
+            return customAssistant.createInstance();
         }
-        AIAssistantDescriptor descriptor = descriptorMap.get(id);
-        if (descriptor == null) {
-            throw new DBException("AI assistant '" + id + "' not found");
+        if (defaultAssistant != null) {
+            return defaultAssistant.createInstance();
         }
-        return descriptor.createInstance();
+        throw new DBException("AI assistant not found");
     }
 }
