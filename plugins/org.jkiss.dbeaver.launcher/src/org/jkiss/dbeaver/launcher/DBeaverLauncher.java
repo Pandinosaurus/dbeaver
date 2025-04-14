@@ -715,8 +715,9 @@ public class DBeaverLauncher {
         String customWorkspacePath = null;
         for (int i = 0; i < args.length; i++) {
             String arg = args[i];
-            if ("-web-config".equals(arg)) {
-                isCloudBeaver = true;
+            if ("-product".equals(arg)) {
+                String productName = args[++i];
+                isCloudBeaver = productName.startsWith("io.cloudbeaver");
             }
             if (ARG_DATA.equals(arg)) {
                 customWorkspacePath = args[++i];
