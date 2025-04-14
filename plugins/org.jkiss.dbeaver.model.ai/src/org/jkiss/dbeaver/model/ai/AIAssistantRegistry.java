@@ -22,9 +22,6 @@ import org.eclipse.core.runtime.Platform;
 import org.jkiss.dbeaver.DBException;
 import org.jkiss.utils.CommonUtils;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
-
 public class AIAssistantRegistry {
 
     private static AIAssistantRegistry instance = null;
