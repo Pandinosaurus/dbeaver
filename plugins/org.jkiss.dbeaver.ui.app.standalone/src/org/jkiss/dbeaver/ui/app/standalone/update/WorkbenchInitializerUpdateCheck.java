@@ -14,22 +14,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jkiss.dbeaver.ui.statistics;
+package org.jkiss.dbeaver.ui.app.standalone.update;
 
 import org.eclipse.ui.application.IWorkbenchWindowConfigurer;
 import org.jkiss.code.NotNull;
+import org.jkiss.dbeaver.core.ui.services.ApplicationPolicyService;
+import org.jkiss.dbeaver.model.app.DBPApplication;
+import org.jkiss.dbeaver.runtime.DBWorkbench;
 import org.jkiss.dbeaver.ui.IWorkbenchWindowInitializer;
 
-public class WorkbenchInitializerDataShareConfirm implements IWorkbenchWindowInitializer {
-
+public class WorkbenchInitializerUpdateCheck implements IWorkbenchWindowInitializer {
     @Override
     public void initializeWorkbenchWindow(@NotNull IWorkbenchWindowConfigurer configurer) {
-        if (UIStatisticsActivator.isSkipDataShareConfirmation() || UIStatisticsActivator.isTrackingEnabled()) {
+        DBPApplication application = DBWorkbench.getPlatform().getApplication();
+        if (application.isDistributed() || ApplicationPolicyService.getInstance().isInstallUpdateDisabled()) {
             return;
         }
-        StatisticsCollectionConfirmDialog dialog = new StatisticsCollectionConfirmDialog(configurer.getWindow().getShell());
-        dialog.open();
+        new DBeaverVersionChecker(false).schedule();
     }
-
 }
-
