@@ -34,33 +34,26 @@ public class AIAssistantRegistry {
     }
 
     private final AIAssistantDescriptor customAssistant;
-    private final AIAssistantDescriptor defaultAssistant;
 
     public AIAssistantRegistry(IExtensionRegistry registry) {
         AIAssistantDescriptor customAssistantDescriptor = null;
-        AIAssistantDescriptor defaultAssistantDescriptor = null;
         IConfigurationElement[] extElements = registry.getConfigurationElementsFor("com.dbeaver.ai.assistant");
         for (IConfigurationElement ext : extElements) {
             if ("assistant".equals(ext.getName())) {
                 AIAssistantDescriptor descriptor = new AIAssistantDescriptor(ext);
                 if (!CommonUtils.isEmpty(descriptor.getReplaces())) {
                     customAssistantDescriptor = descriptor;
-                } else {
-                    defaultAssistantDescriptor = descriptor;
                 }
             }
         }
         this.customAssistant = customAssistantDescriptor;
-        this.defaultAssistant = defaultAssistantDescriptor;
     }
 
     public AIAssistant getAssistant() throws DBException {
         if (customAssistant != null) {
             return customAssistant.createInstance();
+        } else {
+            return new AIAssistantImpl();
         }
-        if (defaultAssistant != null) {
-            return defaultAssistant.createInstance();
-        }
-        throw new DBException("AI assistant not found");
     }
 }
