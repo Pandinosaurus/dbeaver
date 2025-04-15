@@ -1142,9 +1142,6 @@ public class PostgreDatabase extends JDBCRemoteInstance
         @Override
         protected JDBCStatement prepareObjectsStatement(@NotNull JDBCSession session, @NotNull PostgreDatabase owner)
             throws SQLException {
-            if (!owner.getDataSource().isSupportsCollation()) {
-                return session.prepareStatement("SELECT 1");
-            }
             return session.prepareStatement(
                 "SELECT c.oid,c.* FROM pg_catalog.pg_collation c " +
                     "\nORDER BY c.oid"
