@@ -21,6 +21,7 @@ package org.jkiss.dbeaver.model.ai;
  */
 public class AIConstants {
     public static final String CORE_FORMATTER = "core";
+    public static final String CORE_ASSISTANT = "core-assistant";
 
     public static final String OPENAI_ENGINE = "openai";
 
