@@ -20,11 +20,11 @@ import org.eclipse.core.runtime.IConfigurationElement;
 import org.eclipse.core.runtime.IExtensionRegistry;
 import org.eclipse.core.runtime.Platform;
 import org.jkiss.dbeaver.DBException;
-import org.jkiss.utils.CommonUtils;
 
 public class AIAssistantRegistry {
 
     private static AIAssistantRegistry instance = null;
+    private final AIAssistantDescriptor customAssistant;
 
     public synchronized static AIAssistantRegistry getInstance() {
         if (instance == null) {
@@ -33,17 +33,13 @@ public class AIAssistantRegistry {
         return instance;
     }
 
-    private final AIAssistantDescriptor customAssistant;
-
     public AIAssistantRegistry(IExtensionRegistry registry) {
         AIAssistantDescriptor customAssistantDescriptor = null;
         IConfigurationElement[] extElements = registry.getConfigurationElementsFor("com.dbeaver.ai.assistant");
         for (IConfigurationElement ext : extElements) {
             if ("assistant".equals(ext.getName())) {
-                AIAssistantDescriptor descriptor = new AIAssistantDescriptor(ext);
-                if (!CommonUtils.isEmpty(descriptor.getReplaces())) {
-                    customAssistantDescriptor = descriptor;
-                }
+                customAssistantDescriptor = new AIAssistantDescriptor(ext);
+                break;
             }
         }
         this.customAssistant = customAssistantDescriptor;
