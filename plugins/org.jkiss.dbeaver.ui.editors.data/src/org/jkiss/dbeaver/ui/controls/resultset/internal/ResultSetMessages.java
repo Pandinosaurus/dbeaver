@@ -151,7 +151,6 @@ public class ResultSetMessages extends NLS {
 
     public static String actions_name_color_by;
     public static String actions_name_color_reset_by;
-    public static String actions_name_colorize_data_types;
     public static String actions_name_row_colors;
     public static String actions_name_structurize_complex_types;
     public static String actions_spreadsheet_copy_special;
