@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <!-- Schema file written by PDE -->
 <schema targetNamespace="org.jkiss.dbeaver.model.ai" xmlns="http://www.w3.org/2001/XMLSchema">
-<annotation>
+   <annotation>
       <appInfo>
          <meta.schema plugin="com.dbeaver.ai.assistant" id="com.dbeaver.ai.assistant" name="AI assistants"/>
       </appInfo>
@@ -28,15 +28,9 @@
          <attribute name="class" type="string">
             <annotation>
                <documentation>
-                  
                </documentation>
-               <appInfo>
-                  <meta.attribute kind="java" basedOn=":org.jkiss.dbeaver.model.ai.AIAssistant"/>
-               </appInfo>
             </annotation>
          </attribute>
       </complexType>
    </element>
-
-
 </schema>
