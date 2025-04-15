@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2024 DBeaver Corp and others
+ * Copyright (C) 2010-2025 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -522,15 +522,20 @@ public class PostgreDatabase extends JDBCRemoteInstance
     @Association
     public Collection<PostgreCollation> getCollations(DBRProgressMonitor monitor)
         throws DBException {
-        return collationCache.getAllObjects(monitor, this);
+        if (getDataSource().isSupportsCollation()) {
+            return collationCache.getAllObjects(monitor, this);
+        }
+        return null;
     }
 
     @Association
     public PostgreCollation getCollation(DBRProgressMonitor monitor, long id)
         throws DBException {
-        for (PostgreCollation collation : collationCache.getAllObjects(monitor, this)) {
-            if (collation.getObjectId() == id) {
-                return collation;
+        if (getDataSource().isSupportsCollation()) {
+            for (PostgreCollation collation : collationCache.getAllObjects(monitor, this)) {
+                if (collation.getObjectId() == id) {
+                    return collation;
+                }
             }
         }
         log.debug("Collation '" + id + "' not found in schema " + getName());
@@ -1137,6 +1142,9 @@ public class PostgreDatabase extends JDBCRemoteInstance
         @Override
         protected JDBCStatement prepareObjectsStatement(@NotNull JDBCSession session, @NotNull PostgreDatabase owner)
             throws SQLException {
+            if (!owner.getDataSource().isSupportsCollation()) {
+                return session.prepareStatement("SELECT 1");
+            }
             return session.prepareStatement(
                 "SELECT c.oid,c.* FROM pg_catalog.pg_collation c " +
                     "\nORDER BY c.oid"

@@ -523,7 +523,7 @@ public class PostgreDataType extends JDBCDataType<PostgreSchema>
 
     @Property(category = CAT_MODIFIERS)
     public PostgreCollation getCollationId(DBRProgressMonitor monitor) throws DBException {
-        if (collationId != 0) {
+        if (collationId != 0 && getDataSource().isSupportsCollation()) {
             return getDatabase().getCollation(monitor, collationId);
         }
         return null;
