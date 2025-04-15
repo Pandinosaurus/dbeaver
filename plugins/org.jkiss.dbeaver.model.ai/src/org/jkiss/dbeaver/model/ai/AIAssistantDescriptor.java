@@ -24,6 +24,7 @@ import org.jkiss.dbeaver.registry.RegistryConstants;
 
 public class AIAssistantDescriptor extends AbstractDescriptor {
 
+    public static final String EXTENSION_ID = "com.dbeaver.ai.assistant";
     private final ObjectType objectType;
 
     protected AIAssistantDescriptor(IConfigurationElement contributorConfig) {
