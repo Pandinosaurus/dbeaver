@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2024 DBeaver Corp and others
+ * Copyright (C) 2010-2025 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -151,7 +151,6 @@ public class ResultSetMessages extends NLS {
 
     public static String actions_name_color_by;
     public static String actions_name_color_reset_by;
-    public static String actions_name_colorize_data_types;
     public static String actions_name_row_colors;
     public static String actions_name_structurize_complex_types;
     public static String actions_spreadsheet_copy_special;
