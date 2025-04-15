@@ -402,7 +402,7 @@ public abstract class PostgreAttribute<OWNER extends DBSEntity & PostgreObject> 
 
     @Property(viewable = true, editableExpr = "!object.table.view", order = 30, listProvider = CollationListProvider.class)
     public PostgreCollation getCollation(DBRProgressMonitor monitor) throws DBException {
-        if (collationId <= 0 || !getDataSource().isSupportsCollation()) {
+        if (collationId <= 0 || !getDataSource().getServerType().supportsCollations()) {
             return null;
         } else {
             return getDatabase().getCollation(monitor, collationId);

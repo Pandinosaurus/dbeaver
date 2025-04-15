@@ -522,7 +522,7 @@ public class PostgreDatabase extends JDBCRemoteInstance
     @Association
     public Collection<PostgreCollation> getCollations(DBRProgressMonitor monitor)
         throws DBException {
-        if (getDataSource().isSupportsCollation()) {
+        if (getDataSource().getServerType().supportsCollations()) {
             return collationCache.getAllObjects(monitor, this);
         }
         return null;
@@ -531,7 +531,7 @@ public class PostgreDatabase extends JDBCRemoteInstance
     @Association
     public PostgreCollation getCollation(DBRProgressMonitor monitor, long id)
         throws DBException {
-        if (getDataSource().isSupportsCollation()) {
+        if (getDataSource().getServerType().supportsCollations()) {
             for (PostgreCollation collation : collationCache.getAllObjects(monitor, this)) {
                 if (collation.getObjectId() == id) {
                     return collation;

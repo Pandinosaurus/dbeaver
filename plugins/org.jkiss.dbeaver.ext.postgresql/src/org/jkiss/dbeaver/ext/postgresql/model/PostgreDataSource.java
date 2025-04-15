@@ -98,7 +98,6 @@ public class PostgreDataSource extends JDBCDataSource implements DBSInstanceCont
     private boolean shouldShowStatistics;
     private volatile boolean hasStatistics;
     private boolean supportsEnumTable;
-    private boolean supportsCollation;
     private boolean supportsReltypeColumn = true;
     private volatile boolean isConnectionRefreshing = false;
 
@@ -454,15 +453,6 @@ public class PostgreDataSource extends JDBCDataSource implements DBSInstanceCont
                 } catch (Exception e) {
                     log.debug("Error reading pg_enum " + e.getMessage());
                     supportsEnumTable = false;
-                }
-            }
-            // Collation support start from 9.1 https://www.postgresql.org/docs/9.1/release-9-1.html
-            if (isServerVersionAtLeast(9, 1)) {
-                try {
-                    supportsCollation = PostgreUtils.isMetaObjectExists(session, "pg_collation", "*");
-                } catch (Exception e) {
-                    log.debug("Error reading pg_collation " + e.getMessage());
-                    supportsCollation = false;
                 }
             }
             try {
@@ -926,10 +916,6 @@ public class PostgreDataSource extends JDBCDataSource implements DBSInstanceCont
 
     public boolean isSupportsEnumTable() {
         return supportsEnumTable;
-    }
-
-    public boolean isSupportsCollation() {
-        return supportsCollation;
     }
 
     /**
