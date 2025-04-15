@@ -32,6 +32,7 @@ import org.jkiss.dbeaver.model.navigator.meta.DBXTreeNode;
 import org.jkiss.dbeaver.model.preferences.DBPPreferenceStore;
 import org.jkiss.dbeaver.model.runtime.DBRProgressMonitor;
 import org.jkiss.dbeaver.model.struct.*;
+import org.jkiss.dbeaver.model.struct.rdb.DBSTableColumn;
 import org.jkiss.dbeaver.runtime.DBWorkbench;
 import org.jkiss.utils.AlphanumericComparator;
 import org.jkiss.utils.ArrayUtils;
@@ -135,6 +136,13 @@ public class DBNUtils {
         }
 
         if (firstChild instanceof DBNContainer) {
+            return;
+        }
+
+        if (firstChild instanceof DBNDatabaseItem item && item.getObject() instanceof DBSTableColumn) {
+            if (prefStore.getBoolean(ModelPreferences.NAVIGATOR_SORT_ALPHABETICALLY)) {
+                Arrays.sort(children, NodeFolderComparator.INSTANCE);
+            }
             return;
         }
 
