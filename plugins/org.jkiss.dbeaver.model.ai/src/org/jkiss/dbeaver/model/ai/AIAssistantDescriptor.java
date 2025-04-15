@@ -24,29 +24,14 @@ import org.jkiss.utils.CommonUtils;
 
 public class AIAssistantDescriptor extends AbstractDescriptor {
 
-    private final String id;
-    private String replaces;
     private final ObjectType objectType;
 
     protected AIAssistantDescriptor(IConfigurationElement contributorConfig) {
         super(contributorConfig);
-        this.id = contributorConfig.getAttribute(RegistryConstants.ATTR_ID);
-        String replacesAttr = contributorConfig.getAttribute("replaces");
-        if (!CommonUtils.isEmpty(replacesAttr)) {
-            this.replaces = replacesAttr;
-        }
         this.objectType = new ObjectType(contributorConfig, RegistryConstants.ATTR_CLASS);
     }
 
     public AIAssistant createInstance() throws DBException {
         return objectType.createInstance(AIAssistant.class);
-    }
-
-    public String getId() {
-        return id;
-    }
-
-    public String getReplaces() {
-        return replaces;
     }
 }
