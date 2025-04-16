@@ -22,6 +22,7 @@ import org.jkiss.dbeaver.model.sql.semantics.SQLQueryRecognitionContext;
 import org.jkiss.dbeaver.model.sql.semantics.SQLQuerySymbolClass;
 import org.jkiss.dbeaver.model.sql.semantics.SQLQuerySymbolEntry;
 import org.jkiss.dbeaver.model.sql.semantics.context.SQLQueryDataContext;
+import org.jkiss.dbeaver.model.sql.semantics.context.lazy.SQLQueryLazyDataContext;
 import org.jkiss.dbeaver.model.sql.semantics.model.SQLQueryNodeModelVisitor;
 import org.jkiss.dbeaver.model.stm.STMTreeNode;
 
@@ -69,6 +70,14 @@ public class SQLQueryRowsCteSubqueryModel extends SQLQueryRowsSourceModel {
         @NotNull SQLQueryRecognitionContext statistics
     ) {
         return context; // just apply given context
+    }
+
+    @NotNull
+    @Override
+    protected SQLQueryLazyDataContext prepareRelationsImpl(@NotNull SQLQueryLazyDataContext dataContext) {
+        // TODO: source can be NULL
+        SQLQueryLazyDataContext subqueryResult = this.source.prepareRelations(dataContext);
+        return SQLQueryRowsCorrelatedSourceModel.prepareColumnsCorrelation(subqueryResult, this.columNames, this);
     }
 
     @Nullable

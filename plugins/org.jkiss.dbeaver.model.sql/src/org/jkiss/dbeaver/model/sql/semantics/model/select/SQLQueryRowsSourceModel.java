@@ -22,8 +22,10 @@ import org.jkiss.code.Nullable;
 import org.jkiss.dbeaver.model.sql.semantics.SQLQueryModelRecognizer;
 import org.jkiss.dbeaver.model.sql.semantics.SQLQueryRecognitionContext;
 import org.jkiss.dbeaver.model.sql.semantics.context.SQLQueryDataContext;
+import org.jkiss.dbeaver.model.sql.semantics.context.lazy.SQLQueryLazyDataContext;
 import org.jkiss.dbeaver.model.sql.semantics.model.SQLQueryModelContent;
 import org.jkiss.dbeaver.model.sql.semantics.model.SQLQueryNodeModel;
+import org.jkiss.dbeaver.model.sql.semantics.solver.SQLQuerySemanticSolver;
 import org.jkiss.dbeaver.model.stm.STMTreeNode;
 
 /**
@@ -87,6 +89,18 @@ public abstract class SQLQueryRowsSourceModel extends SQLQueryModelContent {
         @NotNull SQLQueryRecognitionContext statistics
     );
 
+    @NotNull
+    public final SQLQueryLazyDataContext prepareRelations(@NotNull SQLQueryLazyDataContext dataContext) {
+        dataContext.transform((c, s) -> this.givenDataContext = c);
+        return this.prepareRelationsImpl(dataContext).transform((c, s) -> {
+            System.out.println("resolved " + this + " to " + c);
+            this.resultDataContext = c;
+            return c;
+        });
+    }
+
+    @NotNull
+    protected abstract SQLQueryLazyDataContext prepareRelationsImpl(@NotNull SQLQueryLazyDataContext context);
 
 }
 

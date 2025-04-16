@@ -20,13 +20,21 @@ package org.jkiss.dbeaver.model.sql.semantics.model.select;
 import org.jkiss.code.NotNull;
 import org.jkiss.code.Nullable;
 import org.jkiss.dbeaver.model.sql.semantics.SQLQueryRecognitionContext;
+import org.jkiss.dbeaver.model.sql.semantics.SQLQuerySymbolEntry;
 import org.jkiss.dbeaver.model.sql.semantics.context.SQLQueryDataContext;
+import org.jkiss.dbeaver.model.sql.semantics.context.lazy.SQLQueryDelayedDataContext;
+import org.jkiss.dbeaver.model.sql.semantics.context.lazy.SQLQueryLazyDataContext;
 import org.jkiss.dbeaver.model.sql.semantics.model.SQLQueryNodeModelVisitor;
+import org.jkiss.dbeaver.model.sql.semantics.solver.SQLQuerySemanticEdge;
+import org.jkiss.dbeaver.model.sql.semantics.solver.SQLQuerySemanticEdgeDeclarator;
 import org.jkiss.dbeaver.model.stm.STMTreeNode;
+import org.jkiss.utils.Pair;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Describes Common Table Expression (CTE)
@@ -125,6 +133,51 @@ public class SQLQueryRowsCteModel extends SQLQueryRowsSourceModel {
     @Override
     protected <R, T> R applyImpl(@NotNull SQLQueryNodeModelVisitor<T, R> visitor, @NotNull T arg) {
         return visitor.visitRowsCte(this, arg);
+    }
+
+    @NotNull
+    @Override
+    protected SQLQueryLazyDataContext prepareRelationsImpl(@NotNull SQLQueryLazyDataContext dataContext) {
+
+        HashMap<SQLQueryRowsCteSubqueryModel, SQLQueryDelayedDataContext> cteSourceDeclarators = new HashMap<>(this.subqueries.size());
+        //List<Pair<SQLQuerySymbolEntry, SQLQueryLazyDataContext>> cteSourceContexts = new ArrayList<>(this.subqueries.size());
+
+        SQLQueryLazyDataContext extendedDataContext = dataContext;
+        for (SQLQueryRowsCteSubqueryModel subquery : this.subqueries) { // bind all the query names at first
+            subquery.prepareAliasDefinition();
+            if (subquery.subqueryName != null) {
+                SQLQueryDelayedDataContext decl = dataContext.makeDelayedContext();
+                SQLQueryLazyDataContext subqueryResult = decl.getDelayedContext().hideSources()
+                    .extendWithTableAlias(subquery.subqueryName.getSymbol(), subquery);
+                extendedDataContext = extendedDataContext.combine(subqueryResult);
+                //cteSourceContexts.add(Pair.of(subquery.subqueryName, decl.getDelayedContext()));
+                cteSourceDeclarators.put(subquery, decl);
+            } else {
+                // should never happen according to the grammar
+                extendedDataContext = extendedDataContext.markHasUnresolvedSource();
+            }
+        }
+
+        for (SQLQueryRowsCteSubqueryModel subquery : this.subqueries) {
+
+            SQLQueryLazyDataContext subqueryResult = (
+                subquery.source == null
+                    ? extendedDataContext.overrideResultTuple(null, (c, s) -> Pair.of(Collections.emptyList(), Collections.emptyList()))
+                    : subquery.prepareRelations(extendedDataContext)
+            ).hideSources();
+            SQLQueryLazyDataContext sourceResult = subquery.subqueryName == null
+                ? subqueryResult
+                : subqueryResult.extendWithTableAlias(subquery.subqueryName.getSymbol(), subquery);
+
+            // TODO error on mismatch number of columns and hide unmapped columns
+
+            SQLQueryDelayedDataContext declarator = cteSourceDeclarators.get(subquery);
+            if (declarator != null) {
+                declarator.setRealContext(sourceResult);
+            }
+        }
+
+        return this.resultQuery.prepareRelations(extendedDataContext);
     }
 }
 

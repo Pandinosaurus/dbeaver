@@ -20,6 +20,7 @@ import org.jkiss.code.NotNull;
 import org.jkiss.dbeaver.model.sql.semantics.*;
 import org.jkiss.dbeaver.model.sql.semantics.context.SQLQueryDataContext;
 import org.jkiss.dbeaver.model.sql.semantics.context.SQLQueryResultColumn;
+import org.jkiss.dbeaver.model.sql.semantics.context.lazy.SQLQueryLazyDataContext;
 import org.jkiss.dbeaver.model.sql.semantics.model.SQLQueryNodeModelVisitor;
 import org.jkiss.dbeaver.model.stm.STMTreeNode;
 
@@ -71,18 +72,32 @@ public class SQLQueryRowsCorrelatedSourceModel extends SQLQueryRowsSourceModel {
         @NotNull SQLQueryRecognitionContext statistics
     ) {
         context = this.source.propagateContext(context, statistics);
-        
         if (this.alias.isNotClassified()) {
             context = context.extendWithTableAlias(this.alias.getSymbol(), this);
-            
-            this.alias.getSymbol().setDefinition(this.alias);
-            if (this.alias.isNotClassified()) {
-                this.alias.getSymbol().setSymbolClass(SQLQuerySymbolClass.TABLE_ALIAS);
-            }
-
+            this.classifyAlias();
             context = prepareColumnsCorrelation(context, this.correlationColumNames, this);
         }
         return context;
+    }
+
+    @NotNull
+    @Override
+    protected SQLQueryLazyDataContext prepareRelationsImpl(@NotNull SQLQueryLazyDataContext context) {
+        context = this.source.prepareRelations(context);
+
+        if (this.alias.isNotClassified()) {
+            context = context.extendWithTableAlias(this.alias.getSymbol(), this);
+            this.classifyAlias();
+            context = prepareColumnsCorrelation(context, this.correlationColumNames, this);
+        }
+        return context;
+    }
+
+    private void classifyAlias() {
+        this.alias.getSymbol().setDefinition(this.alias);
+        if (this.alias.isNotClassified()) {
+            this.alias.getSymbol().setSymbolClass(SQLQuerySymbolClass.TABLE_ALIAS);
+        }
     }
 
     /**
@@ -105,11 +120,21 @@ public class SQLQueryRowsCorrelatedSourceModel extends SQLQueryRowsSourceModel {
                     correlatedName.setSymbolClass(SQLQuerySymbolClass.COLUMN_DERIVED);
                     correlatedNameDef.setDefinition(oldColumn.symbol.getDefinition());
                     columns.set(i, new SQLQueryResultColumn(i, correlatedName, columnsSource, null, null, oldColumn.type));
+                    System.out.println(correlatedName.getName());
                 }
             }
             context = context.overrideResultTuple(columnsSource, columns, context.getPseudoColumnsList());
         }
         return context;
+    }
+
+    @NotNull
+    public static SQLQueryLazyDataContext prepareColumnsCorrelation(
+        @NotNull SQLQueryLazyDataContext context,
+        @NotNull List<SQLQuerySymbolEntry> correlationColumNames,
+        @NotNull SQLQueryRowsSourceModel columnsSource
+    ) {
+        return context.transform((c, s) -> prepareColumnsCorrelation(c, correlationColumNames, columnsSource));
     }
 
     @Override

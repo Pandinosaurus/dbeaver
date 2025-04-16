@@ -31,6 +31,10 @@ public class DoubleLinkedList<T> implements Iterable<T> {
         public Item(T value) {
             this.value = value;
         }
+
+        public boolean belongsTo(DoubleLinkedList<T> list) {
+            return this.list == list;
+        }
     }
 
     private Item<T> head = null;

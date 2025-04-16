@@ -23,6 +23,7 @@ import org.jkiss.dbeaver.model.sql.semantics.*;
 import org.jkiss.dbeaver.model.sql.semantics.context.SQLQueryDataContext;
 import org.jkiss.dbeaver.model.sql.semantics.context.SQLQueryExprType;
 import org.jkiss.dbeaver.model.sql.semantics.context.SQLQueryResultColumn;
+import org.jkiss.dbeaver.model.sql.semantics.context.lazy.SQLQueryLazyDataContext;
 import org.jkiss.dbeaver.model.sql.semantics.model.SQLQueryNodeModelVisitor;
 import org.jkiss.dbeaver.model.stm.STMTreeNode;
 
@@ -85,7 +86,16 @@ public class SQLQueryRowsSetCorrespondingOperationModel extends SQLQueryRowsSetO
     ) {
         SQLQueryDataContext left = this.left.propagateContext(context, statistics);
         SQLQueryDataContext right = this.right.propagateContext(context, statistics);
+        List<SQLQueryResultColumn> resultColumns = this.classifyColumns(left, right, statistics);
+        return context.overrideResultTuple(this, resultColumns, Collections.emptyList());
+    }
 
+    @NotNull
+    private List<SQLQueryResultColumn> classifyColumns(
+        @NotNull SQLQueryDataContext left,
+        @NotNull SQLQueryDataContext right,
+        @NotNull SQLQueryRecognitionContext statistics
+    ) {
         List<SQLQueryResultColumn> resultColumns;
         boolean nonMatchingColumnSets = false;
         if (correspondingColumnNames.isEmpty()) { // require left and right to have the same tuples
@@ -147,7 +157,19 @@ public class SQLQueryRowsSetCorrespondingOperationModel extends SQLQueryRowsSetO
             statistics.appendError(this.getSyntaxNode(), "UNION, EXCEPT and INTERSECT require subsets column tuples to match");
         }
         // TODO multiple definitions per symbol
-        return context.overrideResultTuple(this, resultColumns, Collections.emptyList());
+        return resultColumns;
+    }
+
+    @NotNull
+    @Override
+    protected SQLQueryLazyDataContext prepareRelationsImpl(@NotNull SQLQueryLazyDataContext context) {
+        SQLQueryLazyDataContext left = this.left.prepareRelations(context);
+        SQLQueryLazyDataContext right = this.right.prepareRelations(context);
+        left.transform(right, (l, r, s) -> {
+            this.classifyColumns(l, r, s);
+            return null;
+        });
+        return left;
     }
 
     @Override

@@ -21,6 +21,7 @@ import org.jkiss.code.NotNull;
 import org.jkiss.dbeaver.model.sql.semantics.SQLQueryModelRecognizer;
 import org.jkiss.dbeaver.model.sql.semantics.SQLQueryRecognitionContext;
 import org.jkiss.dbeaver.model.sql.semantics.context.SQLQueryDataContext;
+import org.jkiss.dbeaver.model.sql.semantics.context.lazy.SQLQueryLazyDataContext;
 import org.jkiss.dbeaver.model.sql.semantics.model.SQLQueryNodeModelVisitor;
 import org.jkiss.dbeaver.model.stm.STMTreeNode;
 
@@ -44,6 +45,12 @@ public class SQLQueryRowsCrossJoinModel extends SQLQueryRowsSetOperationModel {
         @NotNull SQLQueryRecognitionContext statistics
     ) {
         return this.left.propagateContext(context, statistics).combine(this.right.propagateContext(context, statistics));
+    }
+
+    @NotNull
+    @Override
+    protected SQLQueryLazyDataContext prepareRelationsImpl(@NotNull SQLQueryLazyDataContext context) {
+        return this.left.prepareRelations(context).combine(this.right.prepareRelations(context));
     }
 
     @Override

@@ -23,6 +23,7 @@ import org.jkiss.code.Nullable;
 import org.jkiss.dbeaver.model.sql.semantics.*;
 import org.jkiss.dbeaver.model.sql.semantics.context.SQLQueryDataContext;
 import org.jkiss.dbeaver.model.sql.semantics.context.SQLQueryResultColumn;
+import org.jkiss.dbeaver.model.sql.semantics.context.lazy.SQLQueryLazyDataContext;
 import org.jkiss.dbeaver.model.sql.semantics.model.SQLQueryNodeModelVisitor;
 import org.jkiss.dbeaver.model.sql.semantics.model.expressions.SQLQueryValueExpression;
 import org.jkiss.dbeaver.model.stm.STMTreeNode;
@@ -92,6 +93,23 @@ public class SQLQueryRowsNaturalJoinModel extends SQLQueryRowsSetOperationModel 
     ) {
         SQLQueryDataContext left = this.left.propagateContext(context, statistics);
         SQLQueryDataContext right = this.right.propagateContext(context, statistics);
+        return this.classifyJoinProps(left, right, statistics);
+    }
+
+    @NotNull
+    @Override
+    protected SQLQueryLazyDataContext prepareRelationsImpl(@NotNull SQLQueryLazyDataContext context) {
+        SQLQueryLazyDataContext l = this.left.prepareRelations(context);
+        SQLQueryLazyDataContext r = this.right.prepareRelations(context);
+        return l.transform(r, this::classifyJoinProps);
+    }
+
+    @NotNull
+    private SQLQueryDataContext classifyJoinProps(
+        @NotNull SQLQueryDataContext left,
+        @NotNull SQLQueryDataContext right,
+        @NotNull SQLQueryRecognitionContext statistics
+    ) {
         SQLQueryDataContext combinedContext = left.combineForJoin(right);
 
         if (this.columsToJoin != null) {

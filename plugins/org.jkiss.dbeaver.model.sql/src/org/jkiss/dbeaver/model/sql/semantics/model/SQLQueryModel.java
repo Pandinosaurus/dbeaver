@@ -22,6 +22,10 @@ import org.jkiss.code.Nullable;
 import org.jkiss.dbeaver.model.sql.semantics.*;
 import org.jkiss.dbeaver.model.sql.semantics.context.SQLQueryDataContext;
 import org.jkiss.dbeaver.model.sql.semantics.context.SQLQueryPureResultTupleContext;
+import org.jkiss.dbeaver.model.sql.semantics.context.lazy.SQLQueryLazyDataContext;
+import org.jkiss.dbeaver.model.sql.semantics.model.select.SQLQueryRowsCteModel;
+import org.jkiss.dbeaver.model.sql.semantics.model.select.SQLQueryRowsSourceModel;
+import org.jkiss.dbeaver.model.sql.semantics.solver.SQLQuerySemanticSolver;
 import org.jkiss.dbeaver.model.stm.STMTreeNode;
 import org.jkiss.dbeaver.model.stm.STMUtils;
 import org.jkiss.dbeaver.utils.ListNode;
@@ -78,7 +82,15 @@ public class SQLQueryModel extends SQLQueryNodeModel {
      */
     public void propagateContext(@NotNull SQLQueryDataContext dataContext, @NotNull SQLQueryRecognitionContext recognitionContext) {
         if (this.queryContent != null) {
-            this.queryContent.applyContext(dataContext, recognitionContext);
+            //if (this.queryContent instanceof SQLQueryRowsSourceModel cte) {
+            if (this.queryContent instanceof SQLQueryRowsCteModel cte) {
+                SQLQuerySemanticSolver solver = new SQLQuerySemanticSolver(recognitionContext);
+                cte.prepareRelations(new SQLQueryLazyDataContext(solver, dataContext, solver.prepared(dataContext)));
+                solver.start();
+                solver.join();
+            } else {
+                this.queryContent.applyContext(dataContext, recognitionContext);
+            }
         }
 
         int actualTailPosition = this.getSyntaxNode().getRealInterval().b;

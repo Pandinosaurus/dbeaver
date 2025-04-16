@@ -87,23 +87,11 @@ public class SQLCommandModelRecognizer {
                 SQLQuerySymbolClass.DBEAVER_COMMAND
             ));
         }
+
         STMTreeNode fakeTree = new STMTreeRuleNode();
         SQLCommandModel cmdModel = new SQLCommandModel(fakeTree, text);
-        registerVariables(scriptContext, cmdText, start, symbolEntries, cmdModel);
-        registerCommandParameter(text, symbolEntries);
-        return new SQLQueryModel(fakeTree, cmdModel, symbolEntries, Collections.emptyList());
-    }
 
-    private static void registerVariables(
-        @NotNull SQLScriptContext scriptContext,
-        @NotNull String cmdText,
-        int start,
-        @NotNull Set<SQLQuerySymbolEntry> symbolEntries,
-        @NotNull SQLCommandModel cmdModel
-    ) {
-        ScriptVariablesResolver variablesResolver = scriptContext.getExecutionContext() == null
-            ? null
-            : new ScriptVariablesResolver(scriptContext);
+        ScriptVariablesResolver variablesResolver = scriptContext.getExecutionContext() == null ? null : new ScriptVariablesResolver(scriptContext);
         List<GeneralUtils.VariableEntryInfo> vars = GeneralUtils.findAllVariableEntries(cmdText);
         for (GeneralUtils.VariableEntryInfo varEntry : vars) {
             SQLQuerySymbolEntry symbolEntry = makeSymbol(
@@ -115,23 +103,35 @@ public class SQLCommandModelRecognizer {
             scriptContext.getVariable(varEntry.name().toUpperCase(Locale.ENGLISH));
             cmdModel.addVariable(symbolEntry, variablesResolver == null ? "?" : variablesResolver.get(varEntry.name()));
         }
-    }
 
-    private static void registerCommandParameter(@NotNull String text, @NotNull Set<SQLQuerySymbolEntry> symbolEntries) {
-        List<SQLQuerySymbolEntry> alreadyHighlighted = symbolEntries.stream()
-            .sorted(Comparator.comparingInt(e -> e.getInterval().a))
-            .toList();
-        int prevPos = 0;
-        for (SQLQuerySymbolEntry entry : alreadyHighlighted) {
-            int entryPos = entry.getInterval().a;
-            if (prevPos < entryPos) {
-                symbolEntries.add(makeSymbol(prevPos, entryPos - prevPos, text.substring(prevPos, entryPos), SQLQuerySymbolClass.UNKNOWN));
+        {
+            List<SQLQuerySymbolEntry> alreadyHighlighted = symbolEntries.stream()
+                .sorted(Comparator.comparingInt(e -> e.getInterval().a))
+                .toList();
+            int prevPos = 0;
+            for (SQLQuerySymbolEntry entry : alreadyHighlighted) {
+                int entryPos = entry.getInterval().a;
+                if (prevPos < entryPos) {
+                    symbolEntries.add(makeSymbol(
+                        prevPos,
+                        entryPos - prevPos,
+                        text.substring(prevPos, entryPos),
+                        SQLQuerySymbolClass.UNKNOWN
+                    ));
+                }
+                prevPos = entry.getInterval().b + 1; // because interval here is inclusive
             }
-            prevPos = entry.getInterval().b + 1; // because interval here is inclusive
+            if (prevPos < text.length()) {
+                symbolEntries.add(makeSymbol(
+                    prevPos,
+                    text.length() - prevPos,
+                    text.substring(prevPos),
+                    SQLQuerySymbolClass.UNKNOWN
+                ));
+            }
         }
-        if (prevPos < text.length()) {
-            symbolEntries.add(makeSymbol(prevPos, text.length() - prevPos, text.substring(prevPos), SQLQuerySymbolClass.UNKNOWN));
-        }
+
+        return new SQLQueryModel(fakeTree, cmdModel, symbolEntries, Collections.emptyList());
     }
 
 

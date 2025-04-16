@@ -16,11 +16,12 @@
  */
 package org.jkiss.dbeaver.model.sql.semantics.solver;
 
-public abstract class SQLQuerySemanticEdge<T> {
+import org.jkiss.code.NotNull;
 
-    abstract SQLQuerySemanticSolver.DepsNode<T> source();
+public interface SQLQuerySemanticEdgeDeclarator<T> extends AutoCloseable {
 
-    abstract boolean isPrepared();
+    @NotNull
+    SQLQuerySemanticEdge<T> edge();
 
-    abstract T value();
+    void providedBy(@NotNull SQLQuerySemanticEdge<T> sourceEdge);
 }

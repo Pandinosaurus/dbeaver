@@ -160,6 +160,7 @@ public class SQLQueryValueColumnReferenceExpression extends SQLQueryValueExpress
                 statistics.appendError(this.getSyntaxNode(), "Invalid column reference");
             }
         } else if (this.tableName == null && this.columnName != null && this.columnName.isNotClassified()) {
+        	System.out.println("resolving " + this.columnName.getName());
             Pair<SQLQueryResultColumn, SQLQueryExprType> columnAndType = resolveColumn(context, statistics, this.columnName, this.rowRefAllowed);
             resultColumn = columnAndType.getFirst();
             type = columnAndType.getSecond() != null ? columnAndType.getSecond() : SQLQueryExprType.UNKNOWN;

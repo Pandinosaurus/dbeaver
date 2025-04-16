@@ -22,6 +22,7 @@ import org.jkiss.dbeaver.model.sql.semantics.SQLQuerySymbol;
 import org.jkiss.dbeaver.model.sql.semantics.context.SQLQueryDataContext;
 import org.jkiss.dbeaver.model.sql.semantics.context.SQLQueryExprType;
 import org.jkiss.dbeaver.model.sql.semantics.context.SQLQueryResultColumn;
+import org.jkiss.dbeaver.model.sql.semantics.context.lazy.SQLQueryLazyDataContext;
 import org.jkiss.dbeaver.model.sql.semantics.model.SQLQueryNodeModelVisitor;
 import org.jkiss.dbeaver.model.sql.semantics.model.expressions.SQLQueryValueExpression;
 import org.jkiss.dbeaver.model.stm.STMTreeNode;
@@ -70,6 +71,12 @@ public class SQLQueryRowsTableValueModel extends SQLQueryRowsSourceModel {
         }
 
         return context;
+    }
+
+    @NotNull
+    @Override
+    protected SQLQueryLazyDataContext prepareRelationsImpl(@NotNull SQLQueryLazyDataContext dataContext) {
+        return dataContext.transform(this::propagateContextImpl);
     }
 
     @Override
