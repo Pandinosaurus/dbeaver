@@ -18,6 +18,7 @@ package org.jkiss.dbeaver.model.access;
 
 /**
  * Auth credentials form.
+ * Provides properties for generating auth model credentials form.
  */
 public interface DBAAuthCredentialsForm {
 }

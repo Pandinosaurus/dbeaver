@@ -20,7 +20,13 @@ import org.jkiss.code.NotNull;
 
 import java.util.Map;
 
+/**
+ * Auth credentials that uses DBAAuthCredentialsForm for generating auth model credentials form.
+ */
 public interface DBAAuthCredentialsWithComplexProperties {
 
+    /**
+     * Updates info based on properties from DBAAuthCredentialsForm.
+     */
     void updateCredentialsFromComplexProperties(@NotNull Map<String, ?> complexProperties);
 }
