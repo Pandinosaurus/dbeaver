@@ -284,9 +284,13 @@ public class SpreadsheetPresentation extends AbstractPresentation
                 case CURRENT:
                     if (curRow != null && !recordMode) {
                         GridPos curPos = spreadsheet.getCursorPosition();
-                        GridCell newCell = spreadsheet.posToCell(curPos);
-                        if (newCell != null) {
-                            spreadsheet.setCursor(newCell, false, true, true);
+                        // Find corresponding grid row
+                        IGridRow gridRow = spreadsheet.getRowByElement(curRow.getVisualNumber(), curRow);
+                        if (gridRow != null) {
+                            GridCell newCell = spreadsheet.posToCell(new GridPos(curPos.col, gridRow.getVisualPosition()));
+                            if (newCell != null) {
+                                spreadsheet.setCursor(newCell, false, true, true);
+                            }
                         }
                     }
                     break;
@@ -375,6 +379,11 @@ public class SpreadsheetPresentation extends AbstractPresentation
     @Override
     protected void performHorizontalScroll(int scrollCount) {
         spreadsheet.scrollHorizontally(scrollCount);
+    }
+
+    private void revealCursor() {
+        GridPos position = spreadsheet.getCursorPosition();
+        spreadsheet.showItem(position.row);
     }
 
     void highlightRows(int firstLine, int lastLine, Color color) {
@@ -1266,22 +1275,17 @@ public class SpreadsheetPresentation extends AbstractPresentation
         }
         if (activeInlineEditor != null) {
             activeInlineEditor.createControl();
-            if (activeInlineEditor.getControl() != null) {
-                activeInlineEditor.getControl().setFocus();
-                activeInlineEditor.getControl().setData(DATA_VALUE_CONTROLLER, valueController);
-                activeInlineEditor.getControl().addKeyListener(
-                    KeyListener.keyPressedAdapter(e -> {
-                        if (!controller.isRecordMode()) {
-                            scrollToRow(RowPosition.CURRENT);
-                        }
-                    })
-                );
-                activeInlineEditor.getControl().addTraverseListener(e -> {
+            Control control = activeInlineEditor.getControl();
+            if (control != null) {
+                control.setFocus();
+                control.setData(DATA_VALUE_CONTROLLER, valueController);
+                control.addKeyListener(KeyListener.keyPressedAdapter(e -> revealCursor()));
+                control.addTraverseListener(e -> {
                     if (e.keyCode == SWT.ESC || e.keyCode == SWT.CR) {
-                        scrollToRow(RowPosition.CURRENT);
+                        revealCursor();
                     }
                 });
-                scrollToRow(RowPosition.CURRENT);
+                revealCursor();
             }
         }
         if (activeInlineEditor instanceof IValueEditorStandalone editorStandalone) {
