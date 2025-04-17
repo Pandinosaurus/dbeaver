@@ -120,6 +120,7 @@ import org.jkiss.dbeaver.ui.editors.sql.addins.SQLEditorAddInDescriptor;
 import org.jkiss.dbeaver.ui.editors.sql.addins.SQLEditorAddInsRegistry;
 import org.jkiss.dbeaver.ui.editors.sql.commands.MultipleResultsPerTabMenuContribution;
 import org.jkiss.dbeaver.ui.editors.sql.execute.SQLQueryJob;
+import org.jkiss.dbeaver.ui.editors.sql.ghost.GhostTextPainter;
 import org.jkiss.dbeaver.ui.editors.sql.handlers.SQLEditorHandlerSwitchPresentation;
 import org.jkiss.dbeaver.ui.editors.sql.handlers.SQLEditorVariablesResolver;
 import org.jkiss.dbeaver.ui.editors.sql.handlers.SQLNavigatorContext;
@@ -151,8 +152,8 @@ import java.net.URI;
 import java.nio.file.Path;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
-import java.util.List;
 import java.util.*;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
@@ -257,6 +258,12 @@ public class SQLEditor extends SQLEditorBase implements
     private volatile boolean isPartControlInitialized = false;
 
     private final ArrayList<SQLEditorAddIn> addIns = new ArrayList<>();
+
+    private GhostTextPainter gtp;
+
+    public GhostTextPainter getGtp() {
+        return gtp;
+    }
 
     private static class ServerOutputInfo {
         private final DBCServerOutputReader outputReader;
@@ -1063,6 +1070,25 @@ public class SQLEditor extends SQLEditorBase implements
                 });
             }
         }
+        gtp = new GhostTextPainter(getViewer());
+        gtp.activate();
+
+        StyledText textWidget = getViewer().getTextWidget();
+        textWidget.addVerifyKeyListener(e -> {
+            if (e.keyCode == SWT.ARROW_RIGHT && gtp.hasDisplayText()) {
+                e.doit = false;
+                gtp.acceptSuggestion();
+            }
+        });
+        textWidget.addCaretListener(event -> {
+            if (gtp.hasDisplayText()) {
+                int caretOffset = event.caretOffset;
+                int ghostOffset = gtp.getCurrentOffset();
+                if (caretOffset != ghostOffset) {
+                    gtp.clearGhostText();
+                }
+            }
+        });
 
         // Start output reader
         new ServerOutputReader().schedule();
@@ -1108,6 +1134,9 @@ public class SQLEditor extends SQLEditorBase implements
     private void onTextChange(ModifyEvent e) {
         if (getActivePreferenceStore().getBoolean(SQLPreferenceConstants.AUTO_SAVE_ON_CHANGE)) {
             doScriptAutoSave();
+        }
+        if (gtp != null) {
+            gtp.clearGhostText();
         }
     }
 
