@@ -72,7 +72,7 @@ public class CopilotClient implements AutoCloseable {
             .POST(HttpRequest.BodyPublishers.ofString(GSON.toJson(requestAccessContent)))
             .build();
 
-        HttpResponse<String> response = client.send(monitor, post, HttpResponse.BodyHandlers.ofString());
+        HttpResponse<String> response = client.send(monitor, post);
         if (response.statusCode() == 200) {
             return GSON.fromJson(response.body(), ResponseData.class);
         } else {
@@ -105,7 +105,7 @@ public class CopilotClient implements AutoCloseable {
                 .POST(HttpRequest.BodyPublishers.ofString(GSON.toJson(requestAccessToken)))
                 .build();
 
-            HttpResponse<String> response = client.send(monitor, post, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = client.send(monitor, post);
             if (response.statusCode() == 200) {
                 GithubAccessTokenData githubAccessTokenData = GSON.fromJson(response.body(), GithubAccessTokenData.class);
                 if (!CommonUtils.isEmpty(githubAccessTokenData.access_token())) {
@@ -137,7 +137,7 @@ public class CopilotClient implements AutoCloseable {
             .timeout(TIMEOUT)
             .build();
 
-        HttpResponse<String> response = client.send(monitor, request, HttpResponse.BodyHandlers.ofString());
+        HttpResponse<String> response = client.send(monitor, request);
         if (response.statusCode() == 200) {
             return GSON.fromJson(response.body(), CopilotSessionToken.class);
         } else {
@@ -162,7 +162,7 @@ public class CopilotClient implements AutoCloseable {
             .timeout(TIMEOUT)
             .build();
 
-        HttpResponse<String> response = client.send(monitor, request, HttpResponse.BodyHandlers.ofString());
+        HttpResponse<String> response = client.send(monitor, request);
         if (response.statusCode() == 200) {
             return GSON.fromJson(response.body(), CopilotChatResponse.class);
         } else {
@@ -186,29 +186,28 @@ public class CopilotClient implements AutoCloseable {
 
         SubmissionPublisher<CopilotChatChunk> publisher = new SubmissionPublisher<>();
 
-        client.sendAsync(request, HttpResponse.BodyHandlers.ofLines())
-            .thenAccept(response -> {
-                response.body().forEach(line -> {
-                    if (line.startsWith("data: ")) {
+        client.sendAsync(
+            request,
+            line -> {
+                if (line.startsWith("data: ")) {
 
-                        String data = line.substring(6).trim();
-                        if ("[DONE]".equals(data)) {
-                            publisher.close();
-                        } else {
-                            try {
-                                CopilotChatChunk chunk = GSON.fromJson(data, CopilotChatChunk.class);
-                                publisher.submit(chunk);
-                            } catch (Exception e) {
-                                publisher.closeExceptionally(e);
-                            }
+                    String data = line.substring(6).trim();
+                    if ("[DONE]".equals(data)) {
+                        publisher.close();
+                    } else {
+                        try {
+                            CopilotChatChunk chunk = GSON.fromJson(data, CopilotChatChunk.class);
+                            publisher.submit(chunk);
+                        } catch (Exception e) {
+                            publisher.closeExceptionally(e);
                         }
                     }
-                });
-            })
-            .exceptionally(ex -> {
-                publisher.closeExceptionally(ex);
-                return null;
-            });
+                }
+            },
+            publisher::closeExceptionally,
+            publisher::close
+        );
+
         return publisher;
     }
 

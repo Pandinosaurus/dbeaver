@@ -20,7 +20,6 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
-import com.theokanning.openai.OpenAiError;
 import com.theokanning.openai.completion.chat.ChatCompletionChunk;
 import com.theokanning.openai.completion.chat.ChatCompletionRequest;
 import com.theokanning.openai.completion.chat.ChatCompletionResult;
@@ -40,7 +39,6 @@ import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.Flow;
 import java.util.concurrent.SubmissionPublisher;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class OpenAIClient {
     private static final Log log = Log.getLog(OpenAIClient.class);
@@ -75,7 +73,7 @@ public class OpenAIClient {
             .build();
 
         HttpRequest modifiedRequest = applyFilters(request);
-        HttpResponse<String> response = client.send(monitor, modifiedRequest, HttpResponse.BodyHandlers.ofString());
+        HttpResponse<String> response = client.send(monitor, modifiedRequest);
         if (response.statusCode() == 200) {
             return deserializeValue(response.body(), ChatCompletionResult.class);
         } else if (response.statusCode() == 429) {
@@ -102,43 +100,26 @@ public class OpenAIClient {
 
         SubmissionPublisher<ChatCompletionChunk> publisher = new SubmissionPublisher<>();
 
-        AtomicBoolean hasError = new AtomicBoolean(false);
-        StringBuilder error = new StringBuilder();
-
-        client.sendAsync(modifiedRequest, HttpResponse.BodyHandlers.ofLines())
-            .thenAccept(response -> {
-                response.body().forEach(line -> {
-                    if (hasError.get() || line.startsWith("{")) {
-                        hasError.set(true);
-                        error.append(line);
-                    } else if (line.startsWith("data: ")) {
-
-                        String data = line.substring(6).trim();
-                        if ("[DONE]".equals(data)) {
-                            publisher.close();
-                        } else {
-                            try {
-                                ChatCompletionChunk chunk = MAPPER.readValue(data, ChatCompletionChunk.class);
-                                publisher.submit(chunk);
-                            } catch (Exception e) {
-                                publisher.closeExceptionally(e);
-                            }
+        client.sendAsync(
+            modifiedRequest,
+            event -> {
+                if (event.startsWith("data: ")) {
+                    String data = event.substring(6).trim();
+                    if ("[DONE]".equals(data)) {
+                        publisher.close();
+                    } else {
+                        try {
+                            ChatCompletionChunk chunk = MAPPER.readValue(data, ChatCompletionChunk.class);
+                            publisher.submit(chunk);
+                        } catch (Exception e) {
+                            publisher.closeExceptionally(e);
                         }
                     }
-                });
-            })
-            .whenComplete((v, e) -> {
-                if (e != null) {
-                    publisher.closeExceptionally(e);
-                } else if (hasError.get()) {
-                    try {
-                        OpenAiError openAIerror = MAPPER.readValue(error.toString(), OpenAiError.class);
-                        publisher.closeExceptionally(new DBException("Error: " + openAIerror.toString()));
-                    } catch (Exception ex) {
-                        publisher.closeExceptionally(ex);
-                    }
                 }
-            });
+            },
+            publisher::closeExceptionally,
+            publisher::close
+        );
 
         return publisher;
     }
