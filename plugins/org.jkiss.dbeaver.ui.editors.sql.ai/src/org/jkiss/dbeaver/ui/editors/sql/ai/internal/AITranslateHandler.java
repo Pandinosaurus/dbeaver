@@ -30,7 +30,6 @@ import org.eclipse.ui.handlers.HandlerUtil;
 import org.jkiss.code.NotNull;
 import org.jkiss.code.Nullable;
 import org.jkiss.dbeaver.DBException;
-import org.jkiss.dbeaver.Log;
 import org.jkiss.dbeaver.model.DBPDataSourceContainer;
 import org.jkiss.dbeaver.model.ai.*;
 import org.jkiss.dbeaver.model.ai.completion.DAICompletionContext;
@@ -67,7 +66,7 @@ public class AITranslateHandler extends AbstractHandler {
     public Object execute(ExecutionEvent event) throws ExecutionException {
         AIFeatures.SQL_AI_POPUP.use();
 
-        if (AISettingsRegistry.getInstance().getSettings().aiDisabled()) {
+        if (AISettingsRegistry.getInstance().getSettings().isAiDisabled()) {
             return null;
         }
         SQLEditor editor = RuntimeUtils.getObjectAdapter(HandlerUtil.getActiveEditor(event), SQLEditor.class);
