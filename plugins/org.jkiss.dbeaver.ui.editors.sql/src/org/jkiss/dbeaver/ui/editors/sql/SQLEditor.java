@@ -259,10 +259,10 @@ public class SQLEditor extends SQLEditorBase implements
 
     private final ArrayList<SQLEditorAddIn> addIns = new ArrayList<>();
 
-    private GhostTextPainter gtp;
+    private GhostTextPainter ghostTextPainter;
 
-    public GhostTextPainter getGtp() {
-        return gtp;
+    public GhostTextPainter getGhostTextPainter() {
+        return ghostTextPainter;
     }
 
     private static class ServerOutputInfo {
@@ -1070,22 +1070,22 @@ public class SQLEditor extends SQLEditorBase implements
                 });
             }
         }
-        gtp = new GhostTextPainter(getViewer());
-        gtp.activate();
+        ghostTextPainter = new GhostTextPainter(getViewer());
+        ghostTextPainter.activate();
 
         StyledText textWidget = getViewer().getTextWidget();
         textWidget.addVerifyKeyListener(e -> {
-            if (e.keyCode == SWT.ARROW_RIGHT && gtp.hasDisplayText()) {
+            if (e.keyCode == SWT.ARROW_RIGHT && ghostTextPainter.hasDisplayText()) {
                 e.doit = false;
-                gtp.acceptSuggestion();
+                ghostTextPainter.acceptSuggestion();
             }
         });
         textWidget.addCaretListener(event -> {
-            if (gtp.hasDisplayText()) {
+            if (ghostTextPainter.hasDisplayText()) {
                 int caretOffset = event.caretOffset;
-                int ghostOffset = gtp.getCurrentOffset();
+                int ghostOffset = ghostTextPainter.getCurrentOffset();
                 if (caretOffset != ghostOffset) {
-                    gtp.clearGhostText();
+                    ghostTextPainter.clearGhostText();
                 }
             }
         });
@@ -1135,8 +1135,8 @@ public class SQLEditor extends SQLEditorBase implements
         if (getActivePreferenceStore().getBoolean(SQLPreferenceConstants.AUTO_SAVE_ON_CHANGE)) {
             doScriptAutoSave();
         }
-        if (gtp != null) {
-            gtp.clearGhostText();
+        if (ghostTextPainter != null) {
+            ghostTextPainter.clearGhostText();
         }
     }
 
