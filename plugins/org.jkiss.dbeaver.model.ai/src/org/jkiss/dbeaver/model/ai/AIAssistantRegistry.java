@@ -24,7 +24,9 @@ import org.jkiss.dbeaver.DBException;
 public class AIAssistantRegistry {
 
     private static AIAssistantRegistry instance = null;
-    private final AIAssistantDescriptor customAssistant;
+
+    private final AIAssistantDescriptor customDescriptor;
+    private AIAssistant globalAssistant;
 
     public synchronized static AIAssistantRegistry getInstance() {
         if (instance == null) {
@@ -35,21 +37,28 @@ public class AIAssistantRegistry {
 
     public AIAssistantRegistry(IExtensionRegistry registry) {
         AIAssistantDescriptor customAssistantDescriptor = null;
-        IConfigurationElement[] extElements = registry.getConfigurationElementsFor("com.dbeaver.ai.assistant");
+        IConfigurationElement[] extElements = registry.getConfigurationElementsFor(AIAssistantDescriptor.EXTENSION_ID);
         for (IConfigurationElement ext : extElements) {
             if ("assistant".equals(ext.getName())) {
                 customAssistantDescriptor = new AIAssistantDescriptor(ext);
                 break;
             }
         }
-        this.customAssistant = customAssistantDescriptor;
+        this.customDescriptor = customAssistantDescriptor;
     }
 
     public AIAssistant getAssistant() throws DBException {
-        if (customAssistant != null) {
-            return customAssistant.createInstance();
-        } else {
-            return new AIAssistantImpl();
+        if (globalAssistant == null) {
+            synchronized (this) {
+                if (globalAssistant == null) {
+                    if (customDescriptor != null) {
+                        globalAssistant = customDescriptor.createInstance();
+                    } else {
+                        globalAssistant = new AIAssistantImpl();
+                    }
+                }
+            }
         }
+        return globalAssistant;
     }
 }
