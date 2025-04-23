@@ -27,7 +27,7 @@ public class AWTUtils {
     public static boolean isDesktopSupported() {
         try {
             return !GraphicsEnvironment.isHeadless() && Desktop.isDesktopSupported();
-        } catch (Exception e) {
+        } catch (Throwable e) {
             log.warn("AWT initialization error", e);
             return false;
         }
