@@ -22,11 +22,11 @@ import org.jkiss.code.Nullable;
 import java.util.List;
 
 public record DAIChatRequest(
-    @NotNull DAICompletionContext context,
+    @Nullable DAICompletionContext context,
     @NotNull List<DAIChatMessage> messages,
     @Nullable DAICompletionEngine engine
 ) {
-    public DAIChatRequest(@NotNull DAICompletionContext context, @NotNull List<DAIChatMessage> messages) {
+    public DAIChatRequest(@Nullable DAICompletionContext context, @NotNull List<DAIChatMessage> messages) {
         this(context, messages, null);
     }
 }
