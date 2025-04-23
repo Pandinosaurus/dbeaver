@@ -14,14 +14,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jkiss.dbeaver.model.websocket.event.session;
+package org.jkiss.dbeaver.model.qm.meta;
 
-import org.jkiss.dbeaver.model.websocket.WSConstants;
+import org.jkiss.code.NotNull;
+import org.jkiss.code.Nullable;
 
-public class WSSessionExpiredEvent extends WSAbstractSessionEvent {
-    public static final String ID = "cb_session_expired";
+/**
+ * QM model data source info.
+ */
+public interface QMMDataSourceInfo {
 
-    public WSSessionExpiredEvent() {
-        super(ID, WSConstants.TOPIC_SESSION);
-    }
+    /**
+     * Returns id of data source container.
+     */
+    @NotNull
+    String getContainerId();
+
+    /**
+     * Returns name of data source container.
+     */
+    @Nullable
+    String getContainerName();
+
+    /**
+     * Returns id of data source driver.
+     */
+    @NotNull
+    String getDriverId();
+
+    /**
+     * Returns url of data source connection.
+     */
+    @Nullable
+    String getConnectionUrl();
 }

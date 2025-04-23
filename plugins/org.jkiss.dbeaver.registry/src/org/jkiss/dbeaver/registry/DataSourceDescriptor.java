@@ -46,6 +46,7 @@ import org.jkiss.dbeaver.model.meta.PropertyLength;
 import org.jkiss.dbeaver.model.navigator.DBNBrowseSettings;
 import org.jkiss.dbeaver.model.net.*;
 import org.jkiss.dbeaver.model.preferences.DBPPropertySource;
+import org.jkiss.dbeaver.model.qm.QMUtils;
 import org.jkiss.dbeaver.model.rm.RMProjectType;
 import org.jkiss.dbeaver.model.runtime.*;
 import org.jkiss.dbeaver.model.secret.*;
@@ -1285,6 +1286,7 @@ public class DataSourceDescriptor
             return true;
         } catch (Throwable e) {
             terminateChildProcesses();
+            handleConnectError(e);
             lastConnectionError = e.getMessage();
             //log.debug("Connection failed (" + getId() + ")", e);
             if (dataSource != null) {
@@ -1319,6 +1321,16 @@ public class DataSourceDescriptor
             }
         } finally {
             monitor.done();
+        }
+    }
+
+    private void handleConnectError(@NotNull Throwable e) {
+        if (!DBWorkbench.getPlatform().getApplication().isMultiuser() && !DBWorkbench.isDistributed()) {
+            // save connect error only for web or distributed product
+            return;
+        }
+        if (e instanceof DBCException connectException && connectException.getDataSource() != null) {
+            QMUtils.getDefaultHandler().handleConnectError(connectException.getDataSource(), e);
         }
     }
 
