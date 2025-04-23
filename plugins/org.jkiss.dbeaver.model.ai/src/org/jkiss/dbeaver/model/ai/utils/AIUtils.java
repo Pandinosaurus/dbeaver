@@ -20,10 +20,11 @@ import org.jkiss.code.NotNull;
 import org.jkiss.code.Nullable;
 import org.jkiss.dbeaver.DBException;
 import org.jkiss.dbeaver.Log;
-import org.jkiss.dbeaver.model.*;
+import org.jkiss.dbeaver.model.DBPEvaluationContext;
+import org.jkiss.dbeaver.model.DBPObject;
+import org.jkiss.dbeaver.model.DBPScriptObject;
+import org.jkiss.dbeaver.model.DBUtils;
 import org.jkiss.dbeaver.model.ai.AIConstants;
-import org.jkiss.code.Nullable;
-import org.jkiss.dbeaver.DBException;
 import org.jkiss.dbeaver.model.ai.completion.DAIChatMessage;
 import org.jkiss.dbeaver.model.ai.completion.DAIChatRole;
 import org.jkiss.dbeaver.model.ai.completion.DAICompletionEngine;
@@ -47,7 +48,14 @@ public final class AIUtils {
 
     private static final Log log = Log.getLog(AIUtils.class);
 
-    public static String getSecretValueOrDefault(@NotNull String secretId, @Nullable String defaultValue) throws DBException {
+    /**
+     * Retrieves a secret value from the global secret controller.
+     * If the secret value is empty, it returns the provided default value.
+     */
+    public static String getSecretValueOrDefault(
+        @NotNull String secretId,
+        @Nullable String defaultValue
+    ) throws DBException {
         String secretValue = DBSSecretController.getGlobalSecretController().getPrivateSecretValue(secretId);
         if (CommonUtils.isEmpty(secretValue)) {
             return defaultValue;

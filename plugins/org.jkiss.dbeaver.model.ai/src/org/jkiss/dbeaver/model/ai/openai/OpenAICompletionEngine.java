@@ -35,7 +35,7 @@ import java.util.concurrent.Flow;
 public class OpenAICompletionEngine implements DAICompletionEngine {
     private static final Log log = Log.getLog(OpenAICompletionEngine.class);
 
-    private final OpenAISettings settings;
+    private final OpenAIConfiguration configuration;
     private final DisposableLazyValue<OpenAIClient, DBException> openAiService = new DisposableLazyValue<>() {
         @Override
         protected OpenAIClient initialize() throws DBException {
@@ -48,8 +48,8 @@ public class OpenAICompletionEngine implements DAICompletionEngine {
         }
     };
 
-    public OpenAICompletionEngine(OpenAISettings settings) {
-        this.settings = settings;
+    public OpenAICompletionEngine(OpenAIConfiguration configuration) {
+        this.configuration = configuration;
     }
 
     @Override
@@ -127,12 +127,12 @@ public class OpenAICompletionEngine implements DAICompletionEngine {
 
     @Override
     public boolean hasValidConfiguration() {
-        return settings.isValidConfiguration();
+        return configuration.isValidConfiguration();
     }
 
     @Override
     public boolean isLoggingEnabled() {
-        return settings.isLoggingEnabled();
+        return configuration.isLoggingEnabled();
     }
 
     @NotNull
@@ -171,15 +171,15 @@ public class OpenAICompletionEngine implements DAICompletionEngine {
     protected OpenAIClient createClient() throws DBException {
         return new OpenAIClient(
             "https://api.openai.com/v1/",
-            List.of(new OpenAIRequestFilter(settings.getToken()))
+            List.of(new OpenAIRequestFilter(configuration.getToken()))
         );
     }
 
     protected String model() {
-        return settings.getModel().getName();
+        return configuration.getModel().getName();
     }
 
     protected double temperature() {
-        return settings.getTemperature();
+        return configuration.getTemperature();
     }
 }
