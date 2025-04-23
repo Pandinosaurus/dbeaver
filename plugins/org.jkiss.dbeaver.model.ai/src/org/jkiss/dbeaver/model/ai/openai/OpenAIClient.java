@@ -28,7 +28,7 @@ import org.jkiss.code.Nullable;
 import org.jkiss.dbeaver.DBException;
 import org.jkiss.dbeaver.Log;
 import org.jkiss.dbeaver.model.ai.TooManyRequestsException;
-import org.jkiss.dbeaver.model.ai.utils.HttpUtils;
+import org.jkiss.dbeaver.model.ai.utils.AIHttpUtils;
 import org.jkiss.dbeaver.model.ai.utils.MonitoredHttpClient;
 import org.jkiss.dbeaver.model.runtime.DBRProgressMonitor;
 
@@ -43,6 +43,8 @@ import java.util.concurrent.SubmissionPublisher;
 public class OpenAIClient {
     private static final Log log = Log.getLog(OpenAIClient.class);
 
+    private static final String DATA_EVENT = "data: ";
+    private static final String DONE_EVENT = "[DONE]";
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
     private static final ObjectMapper MAPPER = new ObjectMapper()
         .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
@@ -67,7 +69,7 @@ public class OpenAIClient {
         @NotNull ChatCompletionRequest completionRequest
     ) throws DBException {
         HttpRequest request = HttpRequest.newBuilder()
-            .uri(HttpUtils.resolve(baseUrl, "chat/completions"))
+            .uri(AIHttpUtils.resolve(baseUrl, "chat/completions"))
             .POST(HttpRequest.BodyPublishers.ofString(serializeValue(completionRequest)))
             .timeout(TIMEOUT)
             .build();
@@ -91,7 +93,7 @@ public class OpenAIClient {
         @NotNull ChatCompletionRequest completionRequest
     ) throws DBException {
         HttpRequest request = HttpRequest.newBuilder()
-            .uri(HttpUtils.resolve(baseUrl, "chat/completions"))
+            .uri(AIHttpUtils.resolve(baseUrl, "chat/completions"))
             .POST(HttpRequest.BodyPublishers.ofString(serializeValue(completionRequest)))
             .timeout(TIMEOUT)
             .build();
@@ -103,9 +105,9 @@ public class OpenAIClient {
         client.sendAsync(
             modifiedRequest,
             event -> {
-                if (event.startsWith("data: ")) {
+                if (event.startsWith(DATA_EVENT)) {
                     String data = event.substring(6).trim();
-                    if ("[DONE]".equals(data)) {
+                    if (DONE_EVENT.equals(data)) {
                         publisher.close();
                     } else {
                         try {

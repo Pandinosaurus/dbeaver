@@ -18,11 +18,11 @@ package org.jkiss.dbeaver.model.ai.utils;
 
 import org.jkiss.dbeaver.DBException;
 
-public class HttpException extends DBException {
+public class AIHttpTransportException extends DBException {
     private final int statusCode;
     private final String responseBody;
 
-    public HttpException(int statusCode, String responseBody) {
+    public AIHttpTransportException(int statusCode, String responseBody) {
         super("HTTP error: " + statusCode + " " + responseBody);
         this.statusCode = statusCode;
         this.responseBody = responseBody;

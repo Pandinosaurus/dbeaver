@@ -85,7 +85,7 @@ public class MonitoredHttpClient implements AutoCloseable {
                 int statusCode = response.statusCode();
                 if (statusCode > 299) {
                     String responseBody = response.body().collect(Collectors.joining());
-                    errorHandler.accept(new HttpException(statusCode, responseBody));
+                    errorHandler.accept(new AIHttpTransportException(statusCode, responseBody));
                     return;
                 }
 

@@ -25,7 +25,7 @@ import org.jkiss.dbeaver.model.ai.copilot.dto.CopilotChatChunk;
 import org.jkiss.dbeaver.model.ai.copilot.dto.CopilotChatRequest;
 import org.jkiss.dbeaver.model.ai.copilot.dto.CopilotChatResponse;
 import org.jkiss.dbeaver.model.ai.copilot.dto.CopilotSessionToken;
-import org.jkiss.dbeaver.model.ai.utils.HttpUtils;
+import org.jkiss.dbeaver.model.ai.utils.AIHttpUtils;
 import org.jkiss.dbeaver.model.ai.utils.MonitoredHttpClient;
 import org.jkiss.dbeaver.model.runtime.DBRProgressMonitor;
 import org.jkiss.utils.CommonUtils;
@@ -40,6 +40,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 public class CopilotClient implements AutoCloseable {
+    private static final String DATA_EVENT = "data: ";
+    private static final String DONE_EVENT = "[DONE]";
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
     private static final Gson GSON = new GsonBuilder()
         .setStrictness(Strictness.LENIENT)
@@ -64,7 +66,7 @@ public class CopilotClient implements AutoCloseable {
     ) throws DBException {
         RequestAccessContent requestAccessContent = new RequestAccessContent(DBEAVER_OAUTH_APP, "read:user");
         HttpRequest post = HttpRequest.newBuilder()
-            .uri(HttpUtils.resolve("https://github.com/login/device/code"))
+            .uri(AIHttpUtils.resolve("https://github.com/login/device/code"))
             .header("accept", "application/json")
             .header("content-type", "application/json")
             .header("accept-encoding", "deflate")
@@ -97,7 +99,7 @@ public class CopilotClient implements AutoCloseable {
                 "urn:ietf:params:oauth:grant-type:device_code"
             );
             HttpRequest post = HttpRequest.newBuilder()
-                .uri(HttpUtils.resolve("https://github.com/login/oauth/access_token"))
+                .uri(AIHttpUtils.resolve("https://github.com/login/oauth/access_token"))
                 .header("accept", "application/json")
                 .header("content-type", "application/json")
                 .header("accept-encoding", "deflate")
@@ -128,7 +130,7 @@ public class CopilotClient implements AutoCloseable {
         String accessToken
     ) throws DBException {
         HttpRequest request = HttpRequest.newBuilder()
-            .uri(HttpUtils.resolve(COPILOT_SESSION_TOKEN_URL))
+            .uri(AIHttpUtils.resolve(COPILOT_SESSION_TOKEN_URL))
             .header("authorization", "token " + accessToken)
             .header("editor-version", EDITOR_VERSION)
             .header("editor-plugin-version", EDITOR_PLUGIN_VERSION)
@@ -155,7 +157,7 @@ public class CopilotClient implements AutoCloseable {
     ) throws DBException {
         HttpRequest request = HttpRequest.newBuilder()
             .header("Content-type", "application/json")
-            .uri(HttpUtils.resolve(CHAT_REQUEST_URL))
+            .uri(AIHttpUtils.resolve(CHAT_REQUEST_URL))
             .header("authorization", "Bearer " + token)
             .header("Editor-Version", CHAT_EDITOR_VERSION)
             .POST(HttpRequest.BodyPublishers.ofString(GSON.toJson(chatRequest)))
@@ -177,7 +179,7 @@ public class CopilotClient implements AutoCloseable {
     ) throws DBException {
         HttpRequest request = HttpRequest.newBuilder()
             .header("Content-type", "application/json")
-            .uri(HttpUtils.resolve(CHAT_REQUEST_URL))
+            .uri(AIHttpUtils.resolve(CHAT_REQUEST_URL))
             .header("authorization", "Bearer " + token)
             .header("Editor-Version", CHAT_EDITOR_VERSION)
             .POST(HttpRequest.BodyPublishers.ofString(GSON.toJson(chatRequest)))
@@ -189,10 +191,10 @@ public class CopilotClient implements AutoCloseable {
         client.sendAsync(
             request,
             line -> {
-                if (line.startsWith("data: ")) {
+                if (line.startsWith(DATA_EVENT)) {
 
                     String data = line.substring(6).trim();
-                    if ("[DONE]".equals(data)) {
+                    if (DONE_EVENT.equals(data)) {
                         publisher.close();
                     } else {
                         try {
