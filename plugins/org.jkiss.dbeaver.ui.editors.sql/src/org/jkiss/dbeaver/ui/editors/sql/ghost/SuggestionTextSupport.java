@@ -23,9 +23,9 @@ import org.eclipse.swt.custom.StyleRange;
 import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.graphics.*;
 
-public class GhostTextSupport {
+public class SuggestionTextSupport {
 
-    private GhostTextSupport() {}
+    private SuggestionTextSupport() {}
 
     /**
      * Draws the first (possibly truncated) line of ghost text at the given offset.

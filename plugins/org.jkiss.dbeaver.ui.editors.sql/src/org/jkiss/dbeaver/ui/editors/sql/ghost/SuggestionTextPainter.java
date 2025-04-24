@@ -29,7 +29,7 @@ import org.jkiss.dbeaver.ui.UIUtils;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
-public class GhostTextPainter implements IPainter, PaintListener, LineBackgroundListener {
+public class SuggestionTextPainter implements IPainter, PaintListener, LineBackgroundListener {
 
     public static final String GHOST = "ghost";
     private final ITextViewer textViewer;
@@ -41,7 +41,7 @@ public class GhostTextPainter implements IPainter, PaintListener, LineBackground
     private IPositionUpdater positionUpdater;
     private boolean independentMode = false;
 
-    public GhostTextPainter(ITextViewer viewer) {
+    public SuggestionTextPainter(ITextViewer viewer) {
         this.textViewer = viewer;
         this.mode = Mode.NONE;
         this.semaphore = new Semaphore(1);
@@ -177,10 +177,10 @@ public class GhostTextPainter implements IPainter, PaintListener, LineBackground
         int off = current.getOffset();
         String[] lines = current.getLines();
         if (lines.length > 0) {
-            GhostTextSupport.drawFirstLine(textViewer, lines[0], gc, getStyledText(), off);
+            SuggestionTextSupport.drawFirstLine(textViewer, lines[0], gc, getStyledText(), off);
             initGC(gc);
             if (lines.length > 1) {
-                GhostTextSupport.drawNextLines(lines[1], gc, getStyledText(), off);
+                SuggestionTextSupport.drawNextLines(lines[1], gc, getStyledText(), off);
             }
         }
         resetMode();
@@ -205,7 +205,7 @@ public class GhostTextPainter implements IPainter, PaintListener, LineBackground
     private void privInsertText(String text) {
         try {
             IDocument doc = textViewer.getDocument();
-            int modelOff = GhostTextSupport.widgetOffset2ModelOffset(textViewer, current.getOffset());
+            int modelOff = SuggestionTextSupport.widgetOffset2ModelOffset(textViewer, current.getOffset());
             doc.replace(modelOff, 0, text);
             getStyledText().setCaretOffset(current.getOffset() + text.length());
         } catch (Exception ignored) {

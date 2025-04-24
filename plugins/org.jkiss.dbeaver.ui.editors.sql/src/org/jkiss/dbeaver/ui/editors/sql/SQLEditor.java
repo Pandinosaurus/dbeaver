@@ -120,7 +120,7 @@ import org.jkiss.dbeaver.ui.editors.sql.addins.SQLEditorAddInDescriptor;
 import org.jkiss.dbeaver.ui.editors.sql.addins.SQLEditorAddInsRegistry;
 import org.jkiss.dbeaver.ui.editors.sql.commands.MultipleResultsPerTabMenuContribution;
 import org.jkiss.dbeaver.ui.editors.sql.execute.SQLQueryJob;
-import org.jkiss.dbeaver.ui.editors.sql.ghost.GhostTextPainter;
+import org.jkiss.dbeaver.ui.editors.sql.ghost.SuggestionTextPainter;
 import org.jkiss.dbeaver.ui.editors.sql.handlers.SQLEditorHandlerSwitchPresentation;
 import org.jkiss.dbeaver.ui.editors.sql.handlers.SQLEditorVariablesResolver;
 import org.jkiss.dbeaver.ui.editors.sql.handlers.SQLNavigatorContext;
@@ -259,10 +259,10 @@ public class SQLEditor extends SQLEditorBase implements
 
     private final ArrayList<SQLEditorAddIn> addIns = new ArrayList<>();
 
-    private GhostTextPainter ghostTextPainter;
+    private SuggestionTextPainter suggestionTextPainter;
 
-    public GhostTextPainter getGhostTextPainter() {
-        return ghostTextPainter;
+    public SuggestionTextPainter getGhostTextPainter() {
+        return suggestionTextPainter;
     }
 
     private static class ServerOutputInfo {
@@ -1070,22 +1070,22 @@ public class SQLEditor extends SQLEditorBase implements
                 });
             }
         }
-        ghostTextPainter = new GhostTextPainter(getViewer());
-        ghostTextPainter.activate();
+        suggestionTextPainter = new SuggestionTextPainter(getViewer());
+        suggestionTextPainter.activate();
 
         StyledText textWidget = getViewer().getTextWidget();
         textWidget.addVerifyKeyListener(e -> {
-            if (e.keyCode == SWT.ARROW_RIGHT && ghostTextPainter.hasDisplayText()) {
+            if (e.keyCode == SWT.ARROW_RIGHT && suggestionTextPainter.hasDisplayText()) {
                 e.doit = false;
-                ghostTextPainter.acceptSuggestion();
+                suggestionTextPainter.acceptSuggestion();
             }
         });
         textWidget.addCaretListener(event -> {
-            if (ghostTextPainter.hasDisplayText()) {
+            if (suggestionTextPainter.hasDisplayText()) {
                 int caretOffset = event.caretOffset;
-                int ghostOffset = ghostTextPainter.getCurrentOffset();
+                int ghostOffset = suggestionTextPainter.getCurrentOffset();
                 if (caretOffset != ghostOffset) {
-                    ghostTextPainter.clearGhostText();
+                    suggestionTextPainter.clearGhostText();
                 }
             }
         });
@@ -1135,8 +1135,8 @@ public class SQLEditor extends SQLEditorBase implements
         if (getActivePreferenceStore().getBoolean(SQLPreferenceConstants.AUTO_SAVE_ON_CHANGE)) {
             doScriptAutoSave();
         }
-        if (ghostTextPainter != null) {
-            ghostTextPainter.clearGhostText();
+        if (suggestionTextPainter != null) {
+            suggestionTextPainter.clearGhostText();
         }
     }
 
