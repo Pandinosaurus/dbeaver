@@ -262,7 +262,7 @@ public class DriverManagerDialog extends HelpEnabledDialog implements ISelection
     @Override
     protected void createButtonsForButtonBar(@NotNull Composite parent, int alignment) {
         if (alignment == SWT.LEAD) {
-            ((GridLayout) parent.getLayout()).numColumns += 2;
+            ((GridLayout) parent.getLayout()).numColumns++;
             Composite placeholder = UIUtils.createPlaceholder(parent, 2);
             UIUtils.createInfoLabel(placeholder, "");
             UIUtils.createPreferenceLink(
