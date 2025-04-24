@@ -2352,9 +2352,8 @@ public class UIUtils {
 
     public static void setControlVisible(Control control, boolean visible) {
         control.setVisible(visible);
-        Object gd = control.getLayoutData();
-        if (gd instanceof GridData) {
-            ((GridData) gd).exclude = !visible;
+        if (control.getLayoutData() instanceof GridData gd) {
+            gd.exclude = !visible;
         }
     }
 
