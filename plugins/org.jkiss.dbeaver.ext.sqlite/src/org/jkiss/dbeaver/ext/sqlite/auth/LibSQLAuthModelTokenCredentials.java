@@ -16,14 +16,19 @@
  */
 package org.jkiss.dbeaver.ext.sqlite.auth;
 
-import org.jkiss.code.NotNull;
-import org.jkiss.dbeaver.model.impl.auth.AuthModelDatabaseNative;
+import org.jkiss.dbeaver.model.impl.auth.AuthModelDatabaseNativeCredentials;
+import org.jkiss.dbeaver.model.meta.Property;
 
-public class LibSQLAuthModelToken extends AuthModelDatabaseNative<LibSQLAuthModelTokenCredentials> {
-
-    @NotNull
+public class LibSQLAuthModelTokenCredentials extends AuthModelDatabaseNativeCredentials {
     @Override
-    public LibSQLAuthModelTokenCredentials createCredentials() {
-        return new LibSQLAuthModelTokenCredentials();
+    @Property(hidden = true)
+    public String getUserName() {
+        return null;
+    }
+
+    @Override
+    @Property(name = "Token", description = "Token")
+    public String getUserPassword() {
+        return super.getUserPassword();
     }
 }
