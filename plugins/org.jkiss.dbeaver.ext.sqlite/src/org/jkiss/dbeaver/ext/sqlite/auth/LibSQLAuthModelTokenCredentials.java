@@ -14,13 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jkiss.dbeaver.model.ai.completion;
+package org.jkiss.dbeaver.ext.sqlite.auth;
 
-import org.jkiss.code.NotNull;
+import org.jkiss.dbeaver.model.impl.auth.AuthModelDatabaseNativeCredentials;
+import org.jkiss.dbeaver.model.meta.Property;
 
-import java.util.List;
+public class LibSQLAuthModelTokenCredentials extends AuthModelDatabaseNativeCredentials {
+    @Override
+    @Property(hidden = true)
+    public String getUserName() {
+        return null;
+    }
 
-public record DAICompletionChunk(
-    @NotNull List<DAICompletionChoice> choices
-) {
+    @Override
+    @Property(name = "Token", description = "Token")
+    public String getUserPassword() {
+        return super.getUserPassword();
+    }
 }
