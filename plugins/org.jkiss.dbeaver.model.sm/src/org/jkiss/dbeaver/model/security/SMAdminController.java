@@ -19,6 +19,7 @@ package org.jkiss.dbeaver.model.security;
 import org.jkiss.code.NotNull;
 import org.jkiss.code.Nullable;
 import org.jkiss.dbeaver.DBException;
+import org.jkiss.dbeaver.model.security.role.SMRolePreference;
 import org.jkiss.dbeaver.model.security.user.*;
 
 import java.util.List;
@@ -232,5 +233,9 @@ public interface SMAdminController extends SMController {
 
     @NotNull
     List<SMTeamMemberInfo> getTeamMembersInfo(@NotNull String teamId) throws DBException;
+
+    void saveRolePreferences(@NotNull List<SMRolePreference> rolePreferences) throws DBException;
+
+    List<SMRolePreference> getRolePreferences() throws DBException;
 
 }
