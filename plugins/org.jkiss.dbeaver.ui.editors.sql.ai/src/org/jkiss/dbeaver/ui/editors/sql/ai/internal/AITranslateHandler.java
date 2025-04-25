@@ -106,7 +106,7 @@ public class AITranslateHandler extends AbstractHandler {
         DAICompletionSettings settings = new DAICompletionSettings(dataSourceContainer);
 
         // Show info transfer warning
-        if (!AIUIUtils.confirmMetaTransfer(settings, dataSourceContainer)) {
+        if (!AIUIUtils.confirmMetaTransfer(settings)) {
             return null;
         }
 
