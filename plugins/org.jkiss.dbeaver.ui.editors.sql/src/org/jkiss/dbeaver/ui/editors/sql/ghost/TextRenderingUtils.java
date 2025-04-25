@@ -19,25 +19,26 @@ package org.jkiss.dbeaver.ui.editors.sql.ghost;
 
 import org.eclipse.jface.text.ITextViewer;
 import org.eclipse.jface.text.ITextViewerExtension5;
-import org.eclipse.swt.custom.StyleRange;
 import org.eclipse.swt.custom.StyledText;
-import org.eclipse.swt.graphics.*;
+import org.eclipse.swt.graphics.FontMetrics;
+import org.eclipse.swt.graphics.GC;
+import org.eclipse.swt.graphics.Point;
+import org.eclipse.swt.graphics.Rectangle;
 
-public class SuggestionTextSupport {
+public class TextRenderingUtils {
 
-    private SuggestionTextSupport() {}
+    private TextRenderingUtils() {
+    }
 
     /**
-     * Draws the first (possibly truncated) line of ghost text at the given offset.
+     * Renders first line of hint text
      */
     public static void drawFirstLine(
-        ITextViewer viewer,
         String text,
         GC gc,
         StyledText textWidget,
         int widgetOffset
     ) {
-        // ensure offset in range
         widgetOffset = Math.max(0, Math.min(widgetOffset, textWidget.getCharCount() - 1));
         int line;
         try {
@@ -45,18 +46,18 @@ public class SuggestionTextSupport {
         } catch (IllegalArgumentException e) {
             return;
         }
-        int bias = getBaselineBias(gc, textWidget, line);
+        int bias = calculateBaselineOffset(gc, textWidget, line);
         Rectangle bounds = textWidget.getTextBounds(widgetOffset, widgetOffset);
         int x = bounds.x + bounds.width;
         int y = bounds.y + bounds.height - textWidget.getLineHeight();
         if (text != null && gc != null) {
-            text = stripMatchingLineContent(text, widgetOffset, textWidget);
+            text = trimOverlappingText(text, widgetOffset, textWidget);
             gc.drawString(text, x, y + bias, true);
         }
     }
 
     /**
-     * Draws second and subsequent lines of ghost text.
+     * Renders continuation lines
      */
     public static void drawNextLines(
         String text,
@@ -73,44 +74,14 @@ public class SuggestionTextSupport {
     }
 
     /**
-     * Adjusts a StyleRange to accommodate ghost text width, if needed.
+     * Removes duplicate text
      */
-    static StyleRange updateStyle(
-        int widgetOffset,
-        String text,
-        StyleRange style,
-        FontMetrics fontMetrics,
-        ITextViewer viewer,
-        int spaceWidth,
-        int textWidth
-    ) {
-        int totalWidth = spaceWidth + textWidth;
-        if (style == null) {
-            style = new StyleRange();
-            style.start = widgetOffset;
-            style.length = 1;
-        }
-        GlyphMetrics gm = style.metrics;
-        if (gm == null || gm.width != totalWidth) {
-            style.metrics = new GlyphMetrics(
-                fontMetrics.getAscent(),
-                fontMetrics.getDescent(),
-                totalWidth
-            );
-            return style;
-        }
-        return null;
-    }
-
-    /**
-     * Removes any leading characters that match existing content on the line.
-     */
-    public static String stripMatchingLineContent(
+    public static String trimOverlappingText(
         String text,
         int offset,
         StyledText widget
     ) {
-        String remaining = getRemainingLineContent(offset, widget);
+        String remaining = getLineRemainder(offset, widget);
         if (!remaining.isEmpty() && text.endsWith(remaining)) {
             return text.substring(0, text.length() - remaining.length());
         }
@@ -118,9 +89,9 @@ public class SuggestionTextSupport {
     }
 
     /**
-     * Computes vertical bias to align text with widget baseline.
+     * Calculates the baseline offset for a specified line in a StyledText widget.
      */
-    public static int getBaselineBias(
+    public static int calculateBaselineOffset(
         GC gc,
         StyledText textWidget,
         int widgetLine
@@ -135,15 +106,20 @@ public class SuggestionTextSupport {
         return Math.max(0, widgetBaseline - fontBaseline);
     }
 
-    private static String getRemainingLineContent(int offset, StyledText widget) {
+    private static String getLineRemainder(int offset, StyledText widget) {
         int line = widget.getLineAtOffset(offset);
         int start = widget.getOffsetAtLine(line);
         String contents = widget.getLine(line);
         return contents.substring(offset - start);
     }
 
+
     /**
-     * Maps a widget offset to model offset if viewer supports it.
+     * Converts a widget offset to a corresponding model offset in the text viewer.
+     *
+     * @param viewer       the text viewer from which the widget offset is taken
+     * @param widgetOffset the offset in the widget
+     * @return the corresponding model offset in the viewer
      */
     public static int widgetOffset2ModelOffset(
         ITextViewer viewer,

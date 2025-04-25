@@ -261,7 +261,7 @@ public class SQLEditor extends SQLEditorBase implements
 
     private SuggestionTextPainter suggestionTextPainter;
 
-    public SuggestionTextPainter getGhostTextPainter() {
+    public SuggestionTextPainter getSuggestionTextPainter() {
         return suggestionTextPainter;
     }
 
@@ -1071,21 +1071,21 @@ public class SQLEditor extends SQLEditorBase implements
             }
         }
         suggestionTextPainter = new SuggestionTextPainter(getViewer());
-        suggestionTextPainter.activate();
+        suggestionTextPainter.enable();
 
         StyledText textWidget = getViewer().getTextWidget();
         textWidget.addVerifyKeyListener(e -> {
-            if (e.keyCode == SWT.ARROW_RIGHT && suggestionTextPainter.hasDisplayText()) {
+            if (e.keyCode == SWT.ARROW_RIGHT && suggestionTextPainter.hasContentToShow()) {
                 e.doit = false;
-                suggestionTextPainter.acceptSuggestion();
+                suggestionTextPainter.applyHint();
             }
         });
         textWidget.addCaretListener(event -> {
-            if (suggestionTextPainter.hasDisplayText()) {
+            if (suggestionTextPainter.hasContentToShow()) {
                 int caretOffset = event.caretOffset;
-                int ghostOffset = suggestionTextPainter.getCurrentOffset();
+                int ghostOffset = suggestionTextPainter.getCurrentPosition();
                 if (caretOffset != ghostOffset) {
-                    suggestionTextPainter.clearGhostText();
+                    suggestionTextPainter.removeHint();
                 }
             }
         });
@@ -1136,7 +1136,7 @@ public class SQLEditor extends SQLEditorBase implements
             doScriptAutoSave();
         }
         if (suggestionTextPainter != null) {
-            suggestionTextPainter.clearGhostText();
+            suggestionTextPainter.removeHint();
         }
     }
 

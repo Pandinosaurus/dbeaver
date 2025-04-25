@@ -31,259 +31,274 @@ import java.util.concurrent.TimeUnit;
 
 public class SuggestionTextPainter implements IPainter, PaintListener, LineBackgroundListener {
 
-    public static final String GHOST = "ghost";
-    private final ITextViewer textViewer;
-    private Color ghostColor;
-    private Mode mode;
-    private final Semaphore semaphore;
-    private boolean active;
-    private SuggestionData current;
-    private IPositionUpdater positionUpdater;
-    private boolean independentMode = false;
+    public static final String HINT_CATEGORY = "suggestion";
+    private final ITextViewer viewerComponent;
+    private Color fontColor;
+    private RenderState currentState;
+    private final Semaphore lockObject;
+    private boolean isEnabled;
+    private HintContent activeHint;
+    private IPositionUpdater updater;
+    private boolean standaloneOperation = false;
 
     public SuggestionTextPainter(ITextViewer viewer) {
-        this.textViewer = viewer;
-        this.mode = Mode.NONE;
-        this.semaphore = new Semaphore(1);
-        this.current = SuggestionData.create(0, "");
-        // register painter on UI thread
-        UIUtils.asyncExec(() -> ((ITextViewerExtension2) textViewer).addPainter(this));
+        this.viewerComponent = viewer;
+        this.currentState = RenderState.IDLE;
+        this.lockObject = new Semaphore(1);
+        this.activeHint = HintContent.initialize(0, "");
+        UIUtils.asyncExec(() -> ((ITextViewerExtension2) viewerComponent).addPainter(this));
     }
 
-    public void setTextColor(Color color) {
-        this.ghostColor = color;
+    public void setHintColor(Color color) {
+        this.fontColor = color;
     }
 
-    public void clearGhostText() {
-        if (!acquire()) {
+    public void removeHint() {
+        if (!tryLock()) {
             return;
         }
-        this.mode = Mode.CLEAR;
-        UIUtils.asyncExec(this::performClear);
+        this.currentState = RenderState.REMOVING;
+        UIUtils.asyncExec(this::executeRemove);
     }
 
-    public void drawGhostText(String text, boolean clearPrevious) {
-        if (!acquire()) {
+    /**
+     * Displays a hint with the given content. Optionally removes any existing hint before displaying the new one.
+     *
+     * @param content        the content of the hint to be displayed
+     * @param removeExisting if true, removes any currently displayed hint before showing the new one
+     */
+    public void showHint(String content, boolean removeExisting) {
+        if (!tryLock()) {
             return;
         }
-        this.mode = Mode.DRAW;
+        this.currentState = RenderState.SHOWING;
         UIUtils.asyncExec(() -> {
-            if (clearPrevious) {
-                performClear();
+            if (removeExisting) {
+                executeRemove();
             }
-            performDraw(text);
+            executeShow(content);
         });
     }
 
-    public boolean isUpdating() {
-        return mode != Mode.NONE;
+    public boolean isProcessing() {
+        return currentState != RenderState.IDLE;
     }
 
-    public void activate() {
-        if (!active) {
-            active = true;
-            StyledText widget = getStyledText();
-            widget.addPaintListener(this);
-            widget.addLineBackgroundListener(this);
-            textViewer.getDocument().addPositionCategory(GHOST);
-            positionUpdater = new DefaultPositionUpdater(GHOST);
-            textViewer.getDocument().addPositionUpdater(positionUpdater);
+    /**
+     * Activates the suggestion text painter and enables its core functionality.
+     */
+    public void enable() {
+        if (!isEnabled) {
+            isEnabled = true;
+            StyledText textWidget = getTextWidget();
+            textWidget.addPaintListener(this);
+            textWidget.addLineBackgroundListener(this);
+            viewerComponent.getDocument().addPositionCategory(HINT_CATEGORY);
+            updater = new DefaultPositionUpdater(HINT_CATEGORY);
+            viewerComponent.getDocument().addPositionUpdater(updater);
         }
     }
 
-    public void deactivate(boolean clear) {
-        if (!active) {
+    @Override
+    public void deactivate(boolean redraw) {
+        disable(redraw);
+    }
+
+    /**
+     * Disables the suggestion text painter functionality.
+     *
+     * @param clearContent if true, removes any displayed hint before disabling the painter.
+     */
+    public void disable(boolean clearContent) {
+        if (!isEnabled) {
             return;
         }
-        if (clear) {
-            clearGhostText();
+        if (clearContent) {
+            removeHint();
         }
-        StyledText widget = getStyledText();
-        widget.removePaintListener(this);
-        widget.removeLineBackgroundListener(this);
-        textViewer.getDocument().removePositionUpdater(positionUpdater);
+        StyledText textWidget = getTextWidget();
+        textWidget.removePaintListener(this);
+        textWidget.removeLineBackgroundListener(this);
+        viewerComponent.getDocument().removePositionUpdater(updater);
         try {
-            textViewer.getDocument().removePositionCategory(GHOST);
-        } catch (BadPositionCategoryException ignore) {
+            viewerComponent.getDocument().removePositionCategory(HINT_CATEGORY);
+        } catch (BadPositionCategoryException ignored) {
         }
-        mode = Mode.NONE;
-        active = false;
+        currentState = RenderState.IDLE;
+        isEnabled = false;
     }
 
     @Override
     public void setPositionManager(IPaintPositionManager manager) {
-
     }
 
     @Override
     public void dispose() {
-
     }
 
     @Override
     public void paint(int reason) {
-        if (!active) {
-            activate();
+        if (!isEnabled) {
+            enable();
         }
     }
 
     @Override
-    public void paintControl(PaintEvent e) {
-        if (independentMode && mode == Mode.DRAW) {
-            renderDraw(e.gc);
+    public void paintControl(PaintEvent event) {
+        if (standaloneOperation && currentState == RenderState.SHOWING) {
+            drawHintContent(event.gc);
             return;
         }
-        if (!hasDisplayText()) {
-            resetMode();
+        if (!hasContentToShow()) {
+            resetState();
             return;
         }
-        switch (mode) {
-            case DRAW:
-                renderDraw(e.gc);
+
+        switch (currentState) {
+            case SHOWING:
+                drawHintContent(event.gc);
                 break;
-            case CLEAR:
-                resetMode();
-                renderDraw(e.gc); // no-op since current text cleared
+            case REMOVING:
+                resetState();
+                drawHintContent(event.gc);
                 break;
             default:
-                renderDraw(e.gc);
+                drawHintContent(event.gc);
                 break;
         }
     }
 
     @Override
     public void lineGetBackground(LineBackgroundEvent event) {
-        // no-op
     }
 
-    public void acceptSuggestion() {
-        if (!hasDisplayText()) {
+    public void applyHint() {
+        if (!hasContentToShow()) {
             return;
         }
-        privInsertText(current.getText());
-        clearGhostText();
+        insertTextAtCursor(activeHint.getContent());
+        removeHint();
     }
 
-    public boolean hasDisplayText() {
-        return current != null && !current.isEmpty();
+    public boolean hasContentToShow() {
+        return activeHint != null && !activeHint.isEmpty();
     }
 
-    public int getCurrentOffset() {
-        return current != null ? current.getOffset() : -1;
+    public int getCurrentPosition() {
+        return activeHint != null ? activeHint.getPosition() : -1;
     }
 
-    private void renderDraw(GC gc) {
-        initGC(gc);
-        int off = current.getOffset();
-        String[] lines = current.getLines();
-        if (lines.length > 0) {
-            SuggestionTextSupport.drawFirstLine(textViewer, lines[0], gc, getStyledText(), off);
-            initGC(gc);
-            if (lines.length > 1) {
-                SuggestionTextSupport.drawNextLines(lines[1], gc, getStyledText(), off);
+    private void drawHintContent(GC gc) {
+        configureGraphicsContext(gc);
+        int position = activeHint.getPosition();
+        String[] textLines = activeHint.getTextLines();
+        if (textLines.length > 0) {
+            TextRenderingUtils.drawFirstLine(textLines[0], gc, getTextWidget(), position);
+            configureGraphicsContext(gc);
+            if (textLines.length > 1) {
+                TextRenderingUtils.drawNextLines(textLines[1], gc, getTextWidget(), position);
             }
         }
-        resetMode();
+        resetState();
     }
 
-    private void performDraw(String text) {
-        int off = getCaretOffset();
-        String prefix = extractPrefix();
-        String frag = text;
-        if (!prefix.isEmpty() && frag.toLowerCase().startsWith(prefix.toLowerCase())) {
-            frag = frag.substring(prefix.length());
+    private void executeShow(String text) {
+        int cursorPosition = getCursorPosition();
+        String wordPrefix = extractCurrentWord();
+        String fragment = text;
+        if (!wordPrefix.isEmpty() && fragment.toLowerCase().startsWith(wordPrefix.toLowerCase())) {
+            fragment = fragment.substring(wordPrefix.length());
         }
-        current = SuggestionData.create(off, frag);
-        getStyledText().redraw();
+        activeHint = HintContent.initialize(cursorPosition, fragment);
+        getTextWidget().redraw();
     }
 
-    private void performClear() {
-        current = SuggestionData.create(current.getOffset(), "");
-        getStyledText().redraw();
+    private void executeRemove() {
+        activeHint = HintContent.initialize(activeHint.getPosition(), "");
+        getTextWidget().redraw();
     }
 
-    private void privInsertText(String text) {
+    private void insertTextAtCursor(String text) {
         try {
-            IDocument doc = textViewer.getDocument();
-            int modelOff = SuggestionTextSupport.widgetOffset2ModelOffset(textViewer, current.getOffset());
-            doc.replace(modelOff, 0, text);
-            getStyledText().setCaretOffset(current.getOffset() + text.length());
+            IDocument document = viewerComponent.getDocument();
+            int modelPosition = TextRenderingUtils.widgetOffset2ModelOffset(viewerComponent, activeHint.getPosition());
+            document.replace(modelPosition, 0, text);
+            getTextWidget().setCaretOffset(activeHint.getPosition() + text.length());
         } catch (Exception ignored) {
         }
     }
 
-    private boolean acquire() {
+    private boolean tryLock() {
         try {
-            return semaphore.tryAcquire(100, TimeUnit.MILLISECONDS);
+            return lockObject.tryAcquire(100, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
             return false;
         }
     }
 
-    private void resetMode() {
-        mode = Mode.NONE;
-        if (semaphore.availablePermits() == 0) {
-            semaphore.release();
+    private void resetState() {
+        currentState = RenderState.IDLE;
+        if (lockObject.availablePermits() == 0) {
+            lockObject.release();
         }
     }
 
-    private void initGC(GC gc) {
-        if (ghostColor != null) {
-            gc.setForeground(ghostColor);
+    private void configureGraphicsContext(GC gc) {
+        if (fontColor != null) {
+            gc.setForeground(fontColor);
         }
-        gc.setBackground(getStyledText().getBackground());
+        gc.setBackground(getTextWidget().getBackground());
     }
 
-    private int getCaretOffset() {
-        return getStyledText().getCaretOffset();
+    private int getCursorPosition() {
+        return getTextWidget().getCaretOffset();
     }
 
-    private String extractPrefix() {
-        StyledText w = getStyledText();
-        int off = getCaretOffset();
-        String line = w.getText().substring(0, off);
-        int sep = Math.max(line.lastIndexOf(' '), line.lastIndexOf('\t'));
-        return sep >= 0 ? line.substring(sep + 1) : line;
+    private String extractCurrentWord() {
+        StyledText widget = getTextWidget();
+        int position = getCursorPosition();
+        String lineContent = widget.getText().substring(0, position);
+        int separator = Math.max(lineContent.lastIndexOf(' '), lineContent.lastIndexOf('\t'));
+        return separator >= 0 ? lineContent.substring(separator + 1) : lineContent;
     }
 
-    private StyledText getStyledText() {
-        return textViewer.getTextWidget();
+    private StyledText getTextWidget() {
+        return viewerComponent.getTextWidget();
     }
 
-    private static class SuggestionData {
-        private final int offset;
-        private final String text;
+    private static class HintContent {
+        private final int position;
+        private final String content;
 
-        private SuggestionData(int offset, String text) {
-            this.offset = offset;
-            this.text = text == null ? "" : text;
+        private HintContent(int position, String content) {
+            this.position = position;
+            this.content = content == null ? "" : content;
         }
 
-        static SuggestionData create(int offset, String text) {
-            return new SuggestionData(offset, text);
+        static HintContent initialize(int position, String content) {
+            return new HintContent(position, content);
         }
 
-        int getOffset() {
-            return offset;
+        int getPosition() {
+            return position;
         }
 
-        String getText() {
-            return text;
+        String getContent() {
+            return content;
         }
 
         boolean isEmpty() {
-            return text.isEmpty();
+            return content.isEmpty();
         }
 
-        String[] getLines() {
-            return text.split("\\R", 2);
+        String[] getTextLines() {
+            return content.split("\\R", 2);
         }
     }
 
-    private enum Mode {
-        NONE,
-        DRAW,
-        CLEAR
+    private enum RenderState {
+        IDLE,
+        SHOWING,
+        REMOVING
     }
 }
-
