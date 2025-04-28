@@ -80,6 +80,9 @@ public class SQLQueryConnectionContext {
         return obj;
     }
 
+    /**
+     * Find real table referenced by its name in the database
+     */
     @Nullable
     public DBSEntity findRealTable(@NotNull DBRProgressMonitor monitor, @NotNull List<String> tableName) {
         // TODO consider differentiating direct references vs expanded aliases:
@@ -88,6 +91,9 @@ public class SQLQueryConnectionContext {
         return obj instanceof DBSTable table ? table : (obj instanceof DBSView view ? view : null);
     }
 
+    /**
+     * Find real object of given type referenced by its name in the database
+     */
     @Nullable
     public DBSObject findRealObject(
         @NotNull DBRProgressMonitor monitor,

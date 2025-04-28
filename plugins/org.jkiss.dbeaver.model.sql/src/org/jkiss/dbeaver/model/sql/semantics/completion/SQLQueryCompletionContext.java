@@ -41,7 +41,6 @@ import org.jkiss.dbeaver.model.sql.semantics.context.*;
 import org.jkiss.dbeaver.model.sql.semantics.model.SQLQueryMemberAccessEntry;
 import org.jkiss.dbeaver.model.sql.semantics.model.SQLQueryModel;
 import org.jkiss.dbeaver.model.sql.semantics.model.SQLQueryTupleRefEntry;
-import org.jkiss.dbeaver.model.sql.semantics.context.SQLQuerySourcesInfoCollection;
 import org.jkiss.dbeaver.model.stm.LSMInspections;
 import org.jkiss.dbeaver.model.stm.STMTreeNode;
 import org.jkiss.dbeaver.model.stm.STMTreeTermErrorNode;
@@ -830,12 +829,22 @@ public abstract class SQLQueryCompletionContext {
                     @Override
                     public void visitColumnRefFromReferencedContext(SQLQuerySymbolOrigin.ColumnRefFromReferencedContext origin) {
                         SQLQueryDataContext referencedContext = origin.getRowsSource().source.getResultDataContext();
-                        makeFilteredCompletionSet(filterOrNull, prepareTupleColumns(referencedContext.getKnownSources(), referencedContext.getColumnsList(), filterOrNull, false), results);
+                        makeFilteredCompletionSet(filterOrNull, prepareTupleColumns(
+                            referencedContext.getKnownSources(),
+                            referencedContext.getColumnsList(),
+                            filterOrNull,
+                            false
+                        ), results);
                     }
 
                     @Override
                     public void visitColumnNameFromContext(SQLQuerySymbolOrigin.ColumnNameFromContext origin) {
-                        makeFilteredCompletionSet(filterOrNull, prepareTupleColumns(origin.getDataContext().getKnownSources(), origin.getDataContext().getColumnsList(), filterOrNull, false), results);
+                        makeFilteredCompletionSet(filterOrNull, prepareTupleColumns(
+                            origin.getDataContext().getKnownSources(),
+                            origin.getDataContext().getColumnsList(),
+                            filterOrNull,
+                            false
+                        ), results);
                     }
 
                     @Override
@@ -870,7 +879,12 @@ public abstract class SQLQueryCompletionContext {
                                 completionContext,
                                 monitor
                             );
-                            String columnListString = prepareTupleColumns(tupleSource.getKnownSources(), tupleSource.getColumnsList(), null, false).stream()
+                            String columnListString = prepareTupleColumns(
+                                tupleSource.getKnownSources(),
+                                tupleSource.getColumnsList(),
+                                null,
+                                false
+                            ).stream()
                                 .map(c -> columnPrefix + c.apply(formatter))
                                 .collect(Collectors.joining(", "));
                             request.setWordPart(SQLConstants.ASTERISK);

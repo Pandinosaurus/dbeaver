@@ -58,7 +58,7 @@ public abstract class SQLQueryRowsSourceModel extends SQLQueryModelContent {
     }
 
     /**
-     * Returns result data context, if it has been resolved. Otherwise, throws UnsupportedOperationException.
+     * Returns result data context, if it has been resolved. Otherwise, throws IllegalStateException.
      */
     @NotNull
     public SQLQueryDataContext getResultDataContext() {
@@ -70,7 +70,7 @@ public abstract class SQLQueryRowsSourceModel extends SQLQueryModelContent {
     }
 
     /**
-     * Returns rows data context, if it has been resolved. Otherwise, throws UnsupportedOperationException.
+     * Returns rows data context, if it has been resolved. Otherwise, throws IllegalStateException.
      */
     @NotNull
     public SQLQueryRowsDataContext getRowsDataContext() {
