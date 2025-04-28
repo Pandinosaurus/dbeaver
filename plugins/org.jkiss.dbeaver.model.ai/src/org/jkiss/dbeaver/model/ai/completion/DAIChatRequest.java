@@ -26,6 +26,10 @@ public record DAIChatRequest(
     @NotNull List<DAIChatMessage> messages,
     @Nullable DAICompletionEngine engine
 ) {
+    public DAIChatRequest {
+        messages = List.copyOf(messages);
+    }
+
     public DAIChatRequest(@Nullable DAICompletionContext context, @NotNull List<DAIChatMessage> messages) {
         this(context, messages, null);
     }
