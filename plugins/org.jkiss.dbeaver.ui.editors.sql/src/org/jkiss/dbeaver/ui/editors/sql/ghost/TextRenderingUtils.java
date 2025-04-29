@@ -23,7 +23,6 @@ import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.graphics.FontMetrics;
 import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.graphics.Point;
-import org.eclipse.swt.graphics.Rectangle;
 
 public class TextRenderingUtils {
 
@@ -39,7 +38,8 @@ public class TextRenderingUtils {
         StyledText textWidget,
         int widgetOffset
     ) {
-        widgetOffset = Math.max(0, Math.min(widgetOffset, textWidget.getCharCount() - 1));
+        widgetOffset = Math.max(0, Math.min(widgetOffset, textWidget.getCharCount()));
+
         int line;
         try {
             line = textWidget.getLineAtOffset(widgetOffset);
@@ -47,12 +47,24 @@ public class TextRenderingUtils {
             return;
         }
         int bias = calculateBaselineOffset(gc, textWidget, line);
-        Rectangle bounds = textWidget.getTextBounds(widgetOffset, widgetOffset);
-        int x = bounds.x + bounds.width;
-        int y = bounds.y + bounds.height - textWidget.getLineHeight();
-        if (text != null && gc != null) {
+
+        Point origin;
+        try {
+            origin = textWidget.getLocationAtOffset(widgetOffset);
+        } catch (IllegalArgumentException e) {
+            origin = textWidget.getLocationAtOffset(textWidget.getCharCount() - 1);
+            origin.y += textWidget.getLineHeight();
+            origin.x = textWidget.getLeftMargin();
+        }
+
+        FontMetrics fm = gc.getFontMetrics();
+        int fontHeight = fm.getHeight();
+        int lineHeight = textWidget.getLineHeight();
+        int y = origin.y + (lineHeight - fontHeight);
+
+        if (text != null) {
             text = trimOverlappingText(text, widgetOffset, textWidget);
-            gc.drawString(text, x, y + bias, true);
+            gc.drawString(text, origin.x, y + bias, true);
         }
     }
 
