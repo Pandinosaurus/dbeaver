@@ -23,6 +23,7 @@ import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.graphics.FontMetrics;
 import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.graphics.Point;
+import org.jkiss.utils.CommonUtils;
 
 public class TextRenderingUtils {
 
@@ -146,15 +147,15 @@ public class TextRenderingUtils {
     }
 
     public static String removeOverlap(String originalText, String suggestion) {
-        if (originalText == null || suggestion == null || originalText.isEmpty() || suggestion.isEmpty()) {
+        if (CommonUtils.isEmpty(suggestion) || CommonUtils.isEmpty(originalText)) {
             return suggestion;
         }
 
         String endOfOriginal = originalText.length() <= 20 ?
-            originalText.trim() : originalText.substring(originalText.length() - 20).trim();
+            originalText : originalText.substring(originalText.length() - 20);
 
-        endOfOriginal = endOfOriginal.replaceAll("\\s+", " ").trim().toLowerCase();
-        String cleanSuggestion = suggestion.replaceAll("\\s+", " ").trim();
+        endOfOriginal = endOfOriginal.replaceAll("\\s+", " ").toLowerCase();
+        String cleanSuggestion = suggestion.replaceAll("\\s+", " ");
 
         for (int length = Math.min(endOfOriginal.length(), cleanSuggestion.length()); length > 0; length--) {
             if (endOfOriginal.length() >= length) {
