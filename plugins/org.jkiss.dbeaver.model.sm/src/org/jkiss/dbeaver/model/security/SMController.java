@@ -234,8 +234,8 @@ public interface SMController extends DBPObjectController, DBInternalDatabaseInf
     String[] getTeamMembers(String teamId) throws DBException;
 
     /**
-     * Get auth role preference for specific authRole
+     * Get auth role preference for specific user's authRole
      */
     @Nullable
-    SMRolePreference getAuthRolePreference(String authRoleId) throws DBException;
+    SMRolePreference getUserAuthRolePreference(String authRoleId) throws DBException;
 }
