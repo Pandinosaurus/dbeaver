@@ -237,6 +237,9 @@ public interface SMAdminController extends SMController {
     @Nullable
     SMRolePreference updateAuthRolePreference(@NotNull SMRolePreference rolePreference) throws DBException;
 
+    /**
+     * Return all role preference that id matches with authRoleIds. If authRoleIds is empty so return all preferences
+     */
     @NotNull
     List<SMRolePreference> getRolePreferences(List<String> authRoleIds) throws DBException;
 

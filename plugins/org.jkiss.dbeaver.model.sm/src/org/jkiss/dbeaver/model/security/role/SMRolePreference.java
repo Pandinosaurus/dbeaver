@@ -22,13 +22,13 @@ import java.util.Map;
 
 public class SMRolePreference {
     @NotNull
-    private String authRoleId;
+    private String id;
 
     @NotNull
     private Map<String, Object> settings;
 
-    public SMRolePreference(@NotNull String authRoleId, @NotNull Map<String, Object> settings) {
-        this.authRoleId = authRoleId;
+    public SMRolePreference(@NotNull String id, @NotNull Map<String, Object> settings) {
+        this.id = id;
         this.settings = settings;
     }
 
@@ -42,11 +42,11 @@ public class SMRolePreference {
     }
 
     @NotNull
-    public String getAuthRoleId() {
-        return authRoleId;
+    public String getId() {
+        return id;
     }
 
-    public void setAuthRoleId(@NotNull String authRoleId) {
-        this.authRoleId = authRoleId;
+    public void setId(@NotNull String id) {
+        this.id = id;
     }
 }
