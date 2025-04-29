@@ -38,6 +38,9 @@ public class TextRenderingUtils {
         StyledText textWidget,
         int widgetOffset
     ) {
+        if (gc == null) {
+            return;
+        }
         widgetOffset = Math.max(0, Math.min(widgetOffset, textWidget.getCharCount()));
 
         int line;
@@ -60,11 +63,11 @@ public class TextRenderingUtils {
         FontMetrics fm = gc.getFontMetrics();
         int fontHeight = fm.getHeight();
         int lineHeight = textWidget.getLineHeight();
-        int y = origin.y + (lineHeight - fontHeight);
+        int verticalPosition = origin.y + (lineHeight - fontHeight) + bias;
 
         if (text != null) {
             text = trimOverlappingText(text, widgetOffset, textWidget);
-            gc.drawString(text, origin.x, y + bias, true);
+            gc.drawString(text, origin.x, verticalPosition, true);
         }
     }
 
@@ -140,5 +143,28 @@ public class TextRenderingUtils {
         return viewer instanceof ITextViewerExtension5 ext5
             ? ext5.widgetOffset2ModelOffset(widgetOffset)
             : widgetOffset;
+    }
+
+    public static String removeOverlap(String originalText, String suggestion) {
+        if (originalText == null || suggestion == null || originalText.isEmpty() || suggestion.isEmpty()) {
+            return suggestion;
+        }
+
+        String endOfOriginal = originalText.length() <= 20 ?
+            originalText.trim() : originalText.substring(originalText.length() - 20).trim();
+
+        endOfOriginal = endOfOriginal.replaceAll("\\s+", " ").trim().toLowerCase();
+        String cleanSuggestion = suggestion.replaceAll("\\s+", " ").trim();
+
+        for (int length = Math.min(endOfOriginal.length(), cleanSuggestion.length()); length > 0; length--) {
+            if (endOfOriginal.length() >= length) {
+                String endSubstring = endOfOriginal.substring(endOfOriginal.length() - length);
+                if (cleanSuggestion.toLowerCase().startsWith(endSubstring)) {
+                    return cleanSuggestion.substring(length).trim();
+                }
+            }
+        }
+
+        return suggestion;
     }
 }
