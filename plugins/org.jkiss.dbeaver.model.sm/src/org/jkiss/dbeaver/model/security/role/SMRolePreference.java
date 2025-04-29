@@ -22,31 +22,31 @@ import java.util.Map;
 
 public class SMRolePreference {
     @NotNull
-    private String role;
+    private String authRoleId;
 
     @NotNull
-    private Map<String, Object> preferences;
+    private Map<String, Object> settings;
 
-    public SMRolePreference(@NotNull String role, @NotNull Map<String, Object> preferences) {
-        this.role = role;
-        this.preferences = preferences;
-    }
-
-    @NotNull
-    public Map<String, Object> getPreferences() {
-        return preferences;
-    }
-
-    public void setPreferences(@NotNull Map<String, Object> preferences) {
-        this.preferences = preferences;
+    public SMRolePreference(@NotNull String authRoleId, @NotNull Map<String, Object> settings) {
+        this.authRoleId = authRoleId;
+        this.settings = settings;
     }
 
     @NotNull
-    public String getRole() {
-        return role;
+    public Map<String, Object> getSettings() {
+        return settings;
     }
 
-    public void setRole(@NotNull String role) {
-        this.role = role;
+    public void setSettings(@NotNull Map<String, Object> settings) {
+        this.settings = settings;
+    }
+
+    @NotNull
+    public String getAuthRoleId() {
+        return authRoleId;
+    }
+
+    public void setAuthRoleId(@NotNull String authRoleId) {
+        this.authRoleId = authRoleId;
     }
 }
