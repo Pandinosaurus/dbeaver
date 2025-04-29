@@ -14,23 +14,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jkiss.dbeaver.model.ai.completion;
+package org.jkiss.dbeaver.model;
 
-import org.jkiss.code.NotNull;
 import org.jkiss.code.Nullable;
 
-import java.util.List;
+/**
+ * Conditional property.
+ * Contains conditions that handle them dynamically.
+ */
+public interface DBPConditionalProperty {
 
-public record DAIChatRequest(
-    @Nullable DAICompletionContext context,
-    @NotNull List<DAIChatMessage> messages,
-    @Nullable DAICompletionEngine engine
-) {
-    public DAIChatRequest {
-        messages = List.copyOf(messages);
-    }
+    /**
+     * JEXL expression for determining the visibility of a property.
+     */
+    @Nullable
+    String getHideExpression();
 
-    public DAIChatRequest(@Nullable DAICompletionContext context, @NotNull List<DAIChatMessage> messages) {
-        this(context, messages, null);
-    }
+    /**
+     * JEXL expression for determining the activity of a property.
+     */
+    @Nullable
+    String getReadOnlyExpression();
 }

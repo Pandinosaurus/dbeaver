@@ -14,23 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jkiss.dbeaver.model.ai.completion;
+package org.jkiss.dbeaver.model.access;
 
-import org.jkiss.code.NotNull;
-import org.jkiss.code.Nullable;
-
-import java.util.List;
-
-public record DAIChatRequest(
-    @Nullable DAICompletionContext context,
-    @NotNull List<DAIChatMessage> messages,
-    @Nullable DAICompletionEngine engine
-) {
-    public DAIChatRequest {
-        messages = List.copyOf(messages);
-    }
-
-    public DAIChatRequest(@Nullable DAICompletionContext context, @NotNull List<DAIChatMessage> messages) {
-        this(context, messages, null);
-    }
+/**
+ * Auth credentials form.
+ * Provides properties for generating auth model credentials form.
+ */
+public interface DBAAuthCredentialsForm {
 }
