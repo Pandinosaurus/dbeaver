@@ -64,7 +64,6 @@ public class PrefPageConnectionTypes extends AbstractPrefPage implements IWorkbe
 
     private static final String HELP_CONNECTION_TYPES_LINK = "Connection-Types";
 
-    private boolean canEdit;
     private Table typeTable;
     private Text typeId;
     private Text typeName;
@@ -82,11 +81,11 @@ public class PrefPageConnectionTypes extends AbstractPrefPage implements IWorkbe
     private ToolItem deleteButton;
     private DBPConnectionType selectedType;
 
+    private final boolean canEdit = DBWorkbench.getPlatform().getWorkspace().hasRealmPermission(RMConstants.PERMISSION_CONFIGURATION_MANAGER);
     private final Map<DBPConnectionType, DBPConnectionType> changedInfo = new HashMap<>();
 
     @Override
     public void init(IWorkbench workbench) {
-        canEdit = DBWorkbench.getPlatform().getWorkspace().hasRealmPermission(RMConstants.PERMISSION_CONFIGURATION_MANAGER);
     }
 
     @NotNull
