@@ -87,16 +87,7 @@ public class SQLScriptParser {
         return tryExpandElement(parseQueryImpl(context, startPos, endPos, currentPos, scriptMode, keepDelimiters, false), context);
     }
 
-    /**
-     * Parses sql query.
-     *
-     * @param dialect          the dialect
-     * @param preferenceStore  the preference store
-     * @param sqlScriptContent the sql script content
-     * @param cursorPosition   the cursor position
-     * @return the sql script element
-     */
-    public static SQLScriptElement parseQueryWithComments(
+    public static SQLScriptElement parseQuery(
         DBPDataSource dataSource,
         SQLDialect dialect,
         DBPPreferenceStore preferenceStore,
@@ -439,10 +430,11 @@ public class SQLScriptParser {
         SQLDialect dialect,
         DBPPreferenceStore preferenceStore,
         String sqlScriptContent,
-        int cursorPosition
+        int cursorPosition,
+        boolean forceExtractComments
     ) {
         SQLParserContext parserContext = prepareSqlParserContext(dataSource, dialect, preferenceStore, sqlScriptContent);
-        return SQLScriptParser.extractQueryAtPos(parserContext, cursorPosition, false);
+        return SQLScriptParser.extractQueryAtPos(parserContext, cursorPosition, forceExtractComments);
     }
 
     private static boolean needsDelimiterAfterBlock(String firstKeyword, String lastKeyword, SQLDialect dialect) {
