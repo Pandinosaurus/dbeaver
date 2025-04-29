@@ -234,8 +234,10 @@ public interface SMAdminController extends SMController {
     @NotNull
     List<SMTeamMemberInfo> getTeamMembersInfo(@NotNull String teamId) throws DBException;
 
-    void updateAuthRolePreference(@NotNull SMRolePreference rolePreference) throws DBException;
+    @Nullable
+    SMRolePreference updateAuthRolePreference(@NotNull SMRolePreference rolePreference) throws DBException;
 
-    List<SMRolePreference> getRolePreferences() throws DBException;
+    @NotNull
+    List<SMRolePreference> getRolePreferences(List<String> authRoleIds) throws DBException;
 
 }
