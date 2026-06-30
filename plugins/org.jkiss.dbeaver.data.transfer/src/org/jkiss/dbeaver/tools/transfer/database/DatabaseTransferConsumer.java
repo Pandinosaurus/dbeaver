@@ -663,6 +663,7 @@ public class DatabaseTransferConsumer implements IDataTransferConsumer<DatabaseC
                 var contextDefaults = session.getExecutionContext().getContextDefaults();
                 if (contextDefaults != null && contextDefaults.supportsCatalogChange() && contextDefaults.getDefaultCatalog() != catalog) {
                     oldCatalog = contextDefaults.getDefaultCatalog();
+                    oldSchema = contextDefaults.getDefaultSchema();
                     try {
                         contextDefaults.setDefaultCatalog(monitor, catalog, (DBSSchema) dbObject);
                     } catch (DBCException e) {
@@ -695,7 +696,13 @@ public class DatabaseTransferConsumer implements IDataTransferConsumer<DatabaseC
         }
         if (session.getDataSource().getInfo().isDynamicMetadata()) {
             if (containerMapping.hasNewTargetObject()) {
-                DatabaseTransferUtils.createTargetDynamicTable(session.getProgressMonitor(), session.getExecutionContext(), schema, containerMapping, containerMapping.getTarget() != null);
+                DatabaseTransferUtils.createTargetDynamicTable(
+                    session.getProgressMonitor(),
+                    session.getExecutionContext(),
+                    schema,
+                    containerMapping,
+                    containerMapping.getTarget() != null
+                );
             }
             return true;
         } else {
@@ -704,15 +711,19 @@ public class DatabaseTransferConsumer implements IDataTransferConsumer<DatabaseC
                 session.getExecutionContext(),
                 schema,
                 containerMapping,
-                containerMapping.getChangedPropertiesMap());
-            try {
-                DatabaseTransferUtils.executeDDL(session, actions);
-            } catch (DBCException e) {
-                throw new DBCException(
-                    "Can't create or update target table:\n" +
-                        SQLUtils.generateScript(session.getDataSource(), actions, false), e);
-            }
+                containerMapping.getChangedPropertiesMap(),
+                settings);
+            executeDDLWithScript(session, actions, "Can't create or update target table:");
             return actions.length > 0;
+        }
+    }
+
+    private void executeDDLWithScript(
+        @NotNull DBCSession session, @NotNull DBEPersistAction[] actions, @NotNull String messagePrefix) throws DBCException {
+        try {
+            DatabaseTransferUtils.executeDDL(session, actions);
+        } catch (DBException e) {
+            throw new DBCException(messagePrefix + "\n" + SQLUtils.generateScript(session.getDataSource(), actions, false), e);
         }
     }
 
@@ -725,6 +736,21 @@ public class DatabaseTransferConsumer implements IDataTransferConsumer<DatabaseC
     public void finishTransfer(@NotNull DBRProgressMonitor monitor, @Nullable Throwable error, @Nullable DBTTask task, boolean last) {
         boolean headlessMode = DBWorkbench.getPlatform().getApplication().isHeadlessMode();
         if (last && error == null) {
+            try {
+                if (settings.hasPostTransferActions()
+                    && settings.executePostTransferActions(monitor, checkTargetContainer(monitor))
+                    && settings.getContainer() != null) {
+                    DatabaseTransferUtils.refreshDatabaseModel(monitor, settings, containerMapping);
+                }
+            } catch (Exception e) {
+                log.error("Error executing post-transfer actions", e);
+                if (!headlessMode) {
+                    DBWorkbench.getPlatformUI().showError(
+                        "Post-transfer actions",
+                        "Error executing post-transfer actions",
+                        e);
+                }
+            }
             // Refresh navigator
             monitor.subTask("Refresh final database model");
             try {
