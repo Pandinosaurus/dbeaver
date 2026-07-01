@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2025 DBeaver Corp and others
+ * Copyright (C) 2010-2026 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -157,8 +157,9 @@ public class SQLServerTableIndex extends JDBCTableIndex<SQLServerSchema, SQLServ
         this.indexComment = indexComment;
     }
 
+    @Nullable
     @Override
-    public List<SQLServerTableIndexColumn> getAttributeReferences(@NotNull DBRProgressMonitor monitor)
+    public List<SQLServerTableIndexColumn> getAttributeReferences(@Nullable DBRProgressMonitor monitor)
     {
         return columns;
     }
@@ -190,6 +191,7 @@ public class SQLServerTableIndex extends JDBCTableIndex<SQLServerSchema, SQLServ
             this);
     }
 
+    @NotNull
     @Override
     public String getObjectDefinitionText(@NotNull DBRProgressMonitor monitor, @NotNull Map<String, Object> options) throws DBException {
         if (!isPersisted() || SQLServerUtils.isDriverBabelfish(getDataSource().getContainer().getDriver())) {

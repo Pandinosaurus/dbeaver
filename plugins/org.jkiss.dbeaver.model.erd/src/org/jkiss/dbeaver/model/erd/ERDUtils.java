@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2025 DBeaver Corp and others
+ * Copyright (C) 2010-2026 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,17 +34,17 @@ import org.jkiss.dbeaver.model.virtual.DBVUtils;
 import org.jkiss.dbeaver.runtime.DBWorkbench;
 import org.jkiss.utils.CommonUtils;
 
-import java.lang.reflect.InvocationTargetException;
 import java.util.*;
 
-public class ERDUtils
-{
+public class ERDUtils {
     private static final Log log = Log.getLog(ERDUtils.class);
 
     @NotNull
-    public static Collection<? extends DBSEntityAttribute> getBestTableIdentifier(@NotNull DBRProgressMonitor monitor, @NotNull DBSEntity entity)
-        throws DBException {
-        if (entity instanceof DBSTable && ((DBSTable) entity).isView()) {
+    public static Collection<? extends DBSEntityAttribute> getBestTableIdentifier(
+        @NotNull DBRProgressMonitor monitor,
+        @NotNull DBSEntity entity
+    ) throws DBException {
+        if (entity instanceof DBSTable table && table.isView()) {
             return Collections.emptyList();
         }
         if (CommonUtils.isEmpty(entity.getAttributes(monitor))) {
@@ -53,24 +53,23 @@ public class ERDUtils
 
         // Find PK or unique key
         DBSEntityConstraint uniqueId = null;
-        //DBSEntityConstraint uniqueIndex = null;
         for (DBSEntityConstraint id : CommonUtils.safeCollection(entity.getConstraints(monitor))) {
-            if (id instanceof DBSEntityReferrer && id.getConstraintType() == DBSEntityConstraintType.PRIMARY_KEY) {
-                return DBUtils.getEntityAttributes(monitor, (DBSEntityReferrer) id);
+            if (id instanceof DBSEntityReferrer entityReferrer && id.getConstraintType() == DBSEntityConstraintType.PRIMARY_KEY) {
+                return DBUtils.getEntityAttributes(monitor, entityReferrer);
             } else if (id.getConstraintType().isUnique()) {
                 uniqueId = id;
-            } else if (id instanceof DBSTableIndex && ((DBSTableIndex) id).isUnique()) {
+            } else if (id instanceof DBSTableIndex index && index.isUnique()) {
                 uniqueId = id;
             }
         }
-        if (uniqueId instanceof DBSEntityReferrer) {
-            return DBUtils.getEntityAttributes(monitor, (DBSEntityReferrer) uniqueId);
+        if (uniqueId instanceof DBSEntityReferrer idReferrer) {
+            return DBUtils.getEntityAttributes(monitor, idReferrer);
         }
 
         // Check indexes
-        if (entity instanceof DBSTable) {
+        if (entity instanceof DBSTable table) {
             try {
-                Collection<? extends DBSTableIndex> indexes = ((DBSTable) entity).getIndexes(monitor);
+                Collection<? extends DBSTableIndex> indexes = table.getIndexes(monitor);
                 if (!CommonUtils.isEmpty(indexes)) {
                     for (DBSTableIndex index : indexes) {
                         if (DBUtils.isIdentifierIndex(monitor, index)) {
@@ -85,7 +84,7 @@ public class ERDUtils
         return Collections.emptyList();
     }
 
-    public static boolean isIdentifyingAssociation(ERDAssociation association) {
+    public static boolean isIdentifyingAssociation(@NotNull ERDAssociation association) {
         if (association.isLogical()) {
             return false;
         }
@@ -97,7 +96,7 @@ public class ERDUtils
         }
     }
 
-    public static boolean isOptionalAssociation(ERDAssociation association) {
+    public static boolean isOptionalAssociation(@NotNull ERDAssociation association) {
         try {
             return DBUtils.isOptionalAssociation(new VoidProgressMonitor(), association.getObject());
         } catch (DBException e) {
@@ -114,7 +113,7 @@ public class ERDUtils
      * @return - existing attribute or null
      */
     @Nullable
-    public static ERDEntityAttribute getAttributeByModel(ERDEntity entity, DBSEntityAttribute attr) {
+    public static ERDEntityAttribute getAttributeByModel(@Nullable ERDEntity entity, @NotNull DBSEntityAttribute attr) {
         if (entity == null) {
             return null;
         }
@@ -126,7 +125,8 @@ public class ERDUtils
         return null;
     }
 
-    public static <T> List<T> getObjectsFromERD(List<? extends ERDObject<T>> erdObjects) {
+    @Nullable
+    public static <T> List<T> getObjectsFromERD(@Nullable List<? extends ERDObject<T>> erdObjects) {
         List<T> result = null;
         if (erdObjects != null) {
             result = new ArrayList<>();
@@ -137,89 +137,86 @@ public class ERDUtils
         return result;
     }
 
-    public static ERDEntity makeEntityFromObject(DBRProgressMonitor monitor, ERDDiagram diagram, List<ERDEntity> otherEntities, DBSEntity entity, Object userData) {
+    @Nullable
+    public static ERDEntity makeEntityFromObject(
+        @NotNull DBRProgressMonitor monitor,
+        @NotNull ERDDiagram diagram,
+        @NotNull List<ERDEntity> otherEntities,
+        @NotNull DBSEntity entity,
+        @Nullable Object userData
+    ) {
         ERDEntity erdEntity = new ERDEntity(entity);
         erdEntity.setUserData(userData);
         try {
             diagram.getContentProvider().fillEntityFromObject(monitor, diagram, otherEntities, erdEntity);
         } catch (DBCException e) {
-            // Something goes wrong
-            DBWorkbench.getPlatformUI().showError(
-                "Can't create entity",
-                e.getMessage());
+            log.error("Can't create ERD entity from database entity " + entity, e);
             return null;
         }
         return erdEntity;
     }
 
+    @NotNull
     public static Collection<DBSEntity> collectDatabaseTables(
-        DBRProgressMonitor monitor,
-        DBSObject root,
-        ERDDiagram diagram,
+        @NotNull DBRProgressMonitor monitor,
+        @NotNull DBSObject root,
+        @NotNull ERDDiagram diagram,
         boolean showViews,
-        boolean showPartitions) throws DBException
-    {
+        boolean showPartitions
+    ) throws DBException {
         Set<DBSEntity> result = new LinkedHashSet<>();
 
         // Cache structure
-        if (root instanceof DBSObjectContainer) {
+        if (root instanceof DBSObjectContainer objectContainer) {
             monitor.beginTask("Load '" + root.getName() + "' content", 3);
-            DBSObjectContainer objectContainer = (DBSObjectContainer) root;
             try {
-                DBExecUtils.tryExecuteRecover(monitor, objectContainer.getDataSource(), param -> {
-                    try {
-                        objectContainer.cacheStructure(monitor, DBSObjectContainer.STRUCT_ENTITIES | DBSObjectContainer.STRUCT_ASSOCIATIONS | DBSObjectContainer.STRUCT_ATTRIBUTES);
-                    } catch (DBException e) {
-                        throw new InvocationTargetException(e);
-                    }
-                });
+                DBExecUtils.tryExecuteRecover(monitor, objectContainer.getDataSource(), param ->
+                    objectContainer.cacheStructure(
+                        monitor,
+                        DBSObjectContainer.STRUCT_ENTITIES
+                            | DBSObjectContainer.STRUCT_ASSOCIATIONS
+                            | DBSObjectContainer.STRUCT_ATTRIBUTES));
             } catch (DBException e) {
                 DBWorkbench.getPlatformUI().showError("Cache database model", "Error caching database model", e);
             }
             Collection<? extends DBSObject> entities = objectContainer.getChildren(monitor);
             if (entities != null) {
                 Class<? extends DBSObject> childType = objectContainer.getPrimaryChildType(monitor);
-                DBSObjectFilter objectFilter = objectContainer.getDataSource().getContainer().getObjectFilter(childType, objectContainer, true);
+                DBSObjectFilter objectFilter = objectContainer.getDataSource().getContainer()
+                    .getObjectFilter(childType, objectContainer, true);
 
                 for (DBSObject entity : entities) {
-                    if (entity instanceof DBSEntity) {
+                    if (entity instanceof DBSEntity dbsEntity) {
                         if (objectFilter != null && objectFilter.isEnabled() && !objectFilter.matches(entity.getName())) {
                             continue;
                         }
 
-                        final DBSEntity entity1 = (DBSEntity) entity;
-
-                        if (skipSystemEntity(entity1)) {
+                        if (skipSystemEntity(dbsEntity)) {
                             continue;
                         }
 
-                        if (entity1.getEntityType() == DBSEntityType.TABLE ||
-                            entity1.getEntityType() == DBSEntityType.CLASS ||
-                            entity1.getEntityType() == DBSEntityType.VIRTUAL_ENTITY ||
-                            (showViews && DBUtils.isView(entity1))
-                            )
-
-                        {
-                            result.add(entity1);
+                        if (dbsEntity.getEntityType() == DBSEntityType.TABLE ||
+                            dbsEntity.getEntityType() == DBSEntityType.CLASS ||
+                            dbsEntity.getEntityType() == DBSEntityType.VIRTUAL_ENTITY ||
+                            (showViews && DBUtils.isView(dbsEntity))
+                        ) {
+                            result.add(dbsEntity);
                         }
                     }
                 }
             }
             monitor.done();
 
-        } else if (root instanceof DBSEntity) {
+        } else if (root instanceof DBSEntity rootEntity) {
             monitor.beginTask("Load '" + root.getName() + "' relations", 3);
-            DBSEntity rootTable = (DBSEntity) root;
-            result.add(rootTable);
+            result.add(rootEntity);
             try {
                 monitor.subTask("Read foreign keys");
-                Collection<? extends DBSEntityAssociation> fks = DBVUtils.getAllAssociations(monitor, rootTable);
-                if (fks != null) {
-                    for (DBSEntityAssociation fk : fks) {
-                        DBSEntity associatedEntity = fk.getAssociatedEntity();
-                        if (associatedEntity != null) {
-                            result.add(DBVUtils.getRealEntity(monitor, associatedEntity));
-                        }
+                Collection<? extends DBSEntityAssociation> fks = DBVUtils.getAllAssociations(monitor, rootEntity);
+                for (DBSEntityAssociation fk : fks) {
+                    DBSEntity associatedEntity = fk.getAssociatedEntity();
+                    if (associatedEntity != null) {
+                        result.add(DBVUtils.getRealEntity(monitor, associatedEntity));
                     }
                 }
                 monitor.worked(1);
@@ -230,7 +227,7 @@ public class ERDUtils
                 return result;
             }
             monitor.subTask("Read references");
-            Collection<? extends DBSEntityAssociation> refs = DBVUtils.getAllReferences(monitor, rootTable);
+            Collection<? extends DBSEntityAssociation> refs = DBVUtils.getAllReferences(monitor, rootEntity);
             for (DBSEntityAssociation ref : refs) {
                 result.add(ref.getParentObject());
             }
@@ -243,7 +240,7 @@ public class ERDUtils
                 monitor.subTask("Read associations");
                 List<DBSEntity> secondLevelEntities = new ArrayList<>();
                 for (DBSEntity entity : result) {
-                    if (entity != rootTable && entity.getEntityType() == DBSEntityType.ASSOCIATION) {
+                    if (entity != rootEntity && entity.getEntityType() == DBSEntityType.ASSOCIATION) {
                         // Read all association's associations
                         Collection<? extends DBSEntityAssociation> fks = entity.getAssociations(monitor);
                         if (fks != null) {
@@ -276,7 +273,7 @@ public class ERDUtils
         return result;
     }
 
-    public static boolean skipSystemEntity(DBSEntity entity) {
+    public static boolean skipSystemEntity(@NotNull DBSEntity entity) {
         boolean showSystemObjects = entity.getDataSource().getContainer().getNavigatorSettings().isShowSystemObjects();
         return !showSystemObjects && entity instanceof DBPSystemObject && ((DBPSystemObject) entity).isSystem();
     }

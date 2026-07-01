@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2025 DBeaver Corp and others
+ * Copyright (C) 2010-2026 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,8 +34,8 @@ import org.jkiss.dbeaver.model.impl.jdbc.struct.JDBCTable;
 import org.jkiss.dbeaver.model.meta.Association;
 import org.jkiss.dbeaver.model.meta.Property;
 import org.jkiss.dbeaver.model.meta.PropertyLength;
-import org.jkiss.dbeaver.model.preferences.DBPPropertySource;
 import org.jkiss.dbeaver.model.runtime.DBRProgressMonitor;
+import org.jkiss.dbeaver.model.struct.DBSDescriptionEditable;
 import org.jkiss.dbeaver.model.struct.DBSObject;
 import org.jkiss.utils.CommonUtils;
 
@@ -51,7 +51,7 @@ import java.util.Collections;
  * @author Denis Forveille
  */
 public abstract class DB2TableBase extends JDBCTable<DB2DataSource, DB2Schema>
-    implements DBPRefreshableObject, DB2StatefulObject, DBPObjectStatistics {
+    implements DBPRefreshableObject, DB2StatefulObject, DBPObjectStatistics, DBSDescriptionEditable {
 
     private DB2TableIndexCache tableIndexCache = new DB2TableIndexCache();
 
@@ -140,9 +140,8 @@ public abstract class DB2TableBase extends JDBCTable<DB2DataSource, DB2Schema>
     // -----------------
     @Override
     @Association
-    public Collection<DB2Index> getIndexes(@NotNull DBRProgressMonitor monitor) throws DBException
-    {
-        return monitor == null ? tableIndexCache.getCachedObjects() : tableIndexCache.getAllObjects(monitor, this);
+    public Collection<DB2Index> getIndexes(@NotNull DBRProgressMonitor monitor) throws DBException {
+        return tableIndexCache.getAllObjects(monitor, this);
     }
 
     // -----------------
@@ -225,8 +224,8 @@ public abstract class DB2TableBase extends JDBCTable<DB2DataSource, DB2Schema>
         return remarks;
     }
 
-    public void setDescription(String description)
-    {
+    @Override
+    public void setDescription(@Nullable String description) {
         this.remarks = description;
     }
 
@@ -246,12 +245,6 @@ public abstract class DB2TableBase extends JDBCTable<DB2DataSource, DB2Schema>
 
     void setTableTotalSize(long tableTotalSize) {
         this.tableTotalSize = tableTotalSize;
-    }
-
-    @Nullable
-    @Override
-    public DBPPropertySource getStatProperties() {
-        return null;
     }
 
 }

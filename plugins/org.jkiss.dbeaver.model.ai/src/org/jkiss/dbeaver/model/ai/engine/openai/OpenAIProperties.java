@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2025 DBeaver Corp and others
+ * Copyright (C) 2010-2026 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,57 +17,144 @@
 package org.jkiss.dbeaver.model.ai.engine.openai;
 
 import com.google.gson.annotations.SerializedName;
+import org.jkiss.code.NotNull;
+import org.jkiss.code.Nullable;
 import org.jkiss.dbeaver.DBException;
-import org.jkiss.dbeaver.model.ai.AIConstants;
+import org.jkiss.dbeaver.model.ai.engine.AIModel;
+import org.jkiss.dbeaver.model.ai.engine.AIModelFeature;
 import org.jkiss.dbeaver.model.ai.utils.AIUtils;
+import org.jkiss.dbeaver.model.meta.IPropertyValueListProvider;
+import org.jkiss.dbeaver.model.meta.Property;
 import org.jkiss.dbeaver.model.meta.SecureProperty;
 import org.jkiss.dbeaver.model.secret.DBSSecretController;
 import org.jkiss.dbeaver.runtime.DBWorkbench;
 
+import java.util.Map;
+
 public class OpenAIProperties implements OpenAIBaseProperties {
+    private static final String GPT_BASE_URL = "gpt.base_url";
+    private static final String GPT_TOKEN = "gpt.token";
+    private static final String GPT_MODEL = "gpt.model";
+    private static final String GPT_CONTEXT_WINDOW_SIZE = "gpt.contextWindowSize";
+    private static final String GPT_MODEL_TEMPERATURE = "gpt.model.temperature";
+    private static final String GPT_LOG_QUERY = "gpt.log.query";
+
+    @Nullable
+    @SerializedName(GPT_BASE_URL)
+    private String baseUrl;
+
+    @Nullable
     @SecureProperty
-    @SerializedName("gpt.token")
+    @SerializedName(GPT_TOKEN)
     private String token;
 
-    @SerializedName("gpt.model")
+    @Nullable
+    @SerializedName(GPT_MODEL)
     private String model;
 
-    @SerializedName("gpt.model.temperature")
-    private double temperature;
+    @Nullable
+    @SerializedName(GPT_CONTEXT_WINDOW_SIZE)
+    private Integer contextWindowSize;
 
-    @SerializedName("gpt.log.query")
-    private boolean loggingEnabled;
+    @SerializedName(GPT_MODEL_TEMPERATURE)
+    private Double temperature;
 
+    @SerializedName(GPT_LOG_QUERY)
+    private Boolean loggingEnabled;
+
+    public OpenAIProperties() {
+    }
+
+    @NotNull
     @Override
+    @Property(order = 2, required = true)
+    public String getBaseUrl() {
+        if (baseUrl == null || baseUrl.isEmpty()) {
+            return OpenAIClientResponses.OPENAI_ENDPOINT;
+        }
+        return baseUrl;
+    }
+
+    public void setBaseUrl(@Nullable String baseUrl) {
+        this.baseUrl = baseUrl;
+    }
+
+    @Nullable
+    @Override
+    @Property(order = 1, password = true, required = true)
     public String getToken() {
         return token;
     }
 
+    public void setToken(@Nullable String token) {
+        this.token = token;
+    }
+
+    @Nullable
     @Override
+    @Property(order = 3, listProvider = OpenAIModelListProvider.class)
     public String getModel() {
-        if (fallbackToPrefStore()) {
-            return DBWorkbench.getPlatform().getPreferenceStore().getString(OpenAIConstants.GPT_MODEL);
+        if (model != null) {
+            return OpenAIModels.getEffectiveModelName(model);
         }
 
-        return model;
+        String modelName = DBWorkbench.getPlatform()
+            .getPreferenceStore()
+            .getString(OpenAIConstants.GPT_MODEL);
+        return OpenAIModels.getEffectiveModelName(modelName);
+    }
+
+    public void setModel(@Nullable String model) {
+        this.model = model;
     }
 
     @Override
+    @Property(order = 4)
     public double getTemperature() {
-        if (fallbackToPrefStore()) {
-            return DBWorkbench.getPlatform().getPreferenceStore().getDouble(OpenAIConstants.AI_TEMPERATURE);
+        if (temperature != null && Double.isFinite(temperature) && temperature != AIUtils.DEFAULT_TEMPERATURE) {
+            return temperature;
         }
 
-        return temperature;
+        return DBWorkbench.getPlatform()
+            .getPreferenceStore()
+            .getDouble(OpenAIConstants.AI_TEMPERATURE);
+    }
+
+    public void setTemperature(double temperature) {
+        this.temperature = AIUtils.normalizeTemperature(temperature);
     }
 
     @Override
+    @Property(order = 5)
     public boolean isLoggingEnabled() {
-        if (fallbackToPrefStore()) {
-            return DBWorkbench.getPlatform().getPreferenceStore().getBoolean(AIConstants.AI_LOG_QUERY);
+        if (loggingEnabled != null) {
+            return loggingEnabled;
         }
 
-        return loggingEnabled;
+        return DBWorkbench.getPlatform()
+            .getPreferenceStore()
+            .getBoolean(OpenAIConstants.AI_LOG_QUERY);
+    }
+
+    public void setLoggingEnabled(boolean loggingEnabled) {
+        this.loggingEnabled = loggingEnabled;
+    }
+
+    @Nullable
+    @Override
+    @Property(order = 6)
+    public Integer getContextWindowSize() {
+        if (contextWindowSize != null) {
+            return contextWindowSize;
+        }
+
+        return OpenAIModels.getModelByName(getModel())
+            .map(AIModel::contextWindowSize)
+            .orElse(null);
+    }
+
+    public void setContextWindowSize(@Nullable Integer contextWindowSize) {
+        this.contextWindowSize = contextWindowSize;
     }
 
     @Override
@@ -82,23 +169,20 @@ public class OpenAIProperties implements OpenAIBaseProperties {
         }
     }
 
-    public void setToken(String token) {
-        this.token = token;
-    }
+    public static class OpenAIModelListProvider implements IPropertyValueListProvider<OpenAIProperties> {
 
-    public void setModel(String model) {
-        this.model = model;
-    }
+        @Override
+        public boolean allowCustomValue() {
+            return false;
+        }
 
-    public void setTemperature(double temperature) {
-        this.temperature = temperature;
-    }
-
-    public void setLoggingEnabled(boolean loggingEnabled) {
-        this.loggingEnabled = loggingEnabled;
-    }
-
-    private boolean fallbackToPrefStore() {
-        return this.model == null;
+        @Nullable
+        @Override
+        public Object[] getPossibleValues(OpenAIProperties object) {
+            return OpenAIModels.KNOWN_MODELS.entrySet().stream()
+                .filter(entry -> !entry.getValue().features().contains(AIModelFeature.SPEECH_TO_TEXT))
+                .map(Map.Entry::getKey)
+                .toArray();
+        }
     }
 }

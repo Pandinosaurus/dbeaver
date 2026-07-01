@@ -200,13 +200,14 @@ public class SQLQueryCompletionAnalyzer implements DBRRunnableParametrized<DBRPr
         return switch (item.getKind()) {
             case SCHEMA, CATALOG, UNKNOWN ->  DBValueFormatting.getObjectImage(item.getObject());
             case RESERVED -> DBIcon.SQL_TEXT;
-            case SUBQUERY_ALIAS -> DBIcon.TREE_TABLE_ALIAS;
+            case SUBQUERY_ALIAS, RELATED_SUBQUERY_ALIAS -> DBIcon.TREE_TABLE_ALIAS;
             case DERIVED_COLUMN_NAME -> DBIcon.TREE_DERIVED_COLUMN;
-            case NEW_TABLE_NAME, USED_TABLE_NAME -> {
+            case NEW_TABLE_NAME, USED_TABLE_NAME, RELATED_TABLE_NAME -> {
                 DBPObject object = item.getObject();
                 yield object == null ? DBIcon.TREE_TABLE : DBValueFormatting.getObjectImage(object);
             }
             case TABLE_COLUMN_NAME -> DBIcon.TREE_COLUMN;
+            case GLOBAL_PSEUDO_COLUMN -> DBIcon.TREE_ATTRIBUTE;
             case COMPOSITE_FIELD_NAME -> DBIcon.TREE_DATA_TYPE;
             case JOIN_CONDITION -> DBIcon.TREE_CONSTRAINT;
             case PROCEDURE -> item.getObject() == null ? DBIcon.TREE_FUNCTION : DBValueFormatting.getObjectImage(item.getObject());

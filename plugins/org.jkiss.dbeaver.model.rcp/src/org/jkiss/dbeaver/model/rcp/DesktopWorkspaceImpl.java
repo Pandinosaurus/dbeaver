@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2025 DBeaver Corp and others
+ * Copyright (C) 2010-2026 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,8 @@ import org.jkiss.dbeaver.model.DBPAdaptable;
 import org.jkiss.dbeaver.model.DBPExternalFileManager;
 import org.jkiss.dbeaver.model.DBPImage;
 import org.jkiss.dbeaver.model.app.*;
+import org.jkiss.dbeaver.model.fs.DBFResourceAdapter;
+import org.jkiss.dbeaver.model.fs.DBFVirtualFileSystemRoot;
 import org.jkiss.dbeaver.model.impl.app.BaseWorkspaceImpl;
 import org.jkiss.dbeaver.model.runtime.AbstractJob;
 import org.jkiss.dbeaver.model.runtime.DBRProgressMonitor;
@@ -35,17 +37,19 @@ import org.jkiss.dbeaver.registry.ResourceTypeDescriptor;
 import org.jkiss.dbeaver.registry.ResourceTypeRegistry;
 import org.jkiss.dbeaver.runtime.DBWorkbench;
 import org.jkiss.dbeaver.utils.GeneralUtils;
+import org.jkiss.dbeaver.utils.ResourceUtils;
 import org.jkiss.utils.ArrayUtils;
 import org.jkiss.utils.CommonUtils;
 
 import java.io.*;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 
 /**
  * DBeaver desktop workspace.
  */
-public class DesktopWorkspaceImpl extends EclipseWorkspaceImpl implements DBPWorkspaceDesktop, DBPExternalFileManager {
+public class DesktopWorkspaceImpl extends EclipseWorkspaceImpl implements DBPWorkspaceDesktop, DBPExternalFileManager, DBFResourceAdapter {
 
     private static final Log log = Log.getLog(DesktopWorkspaceImpl.class);
 
@@ -58,14 +62,30 @@ public class DesktopWorkspaceImpl extends EclipseWorkspaceImpl implements DBPWor
     private final List<ResourceHandlerDescriptor> handlerDescriptors = new ArrayList<>();
     private DBPResourceHandler defaultHandler;
 
-    public DesktopWorkspaceImpl(DBPPlatform platform, IWorkspace eclipseWorkspace) {
+    public DesktopWorkspaceImpl(@NotNull DBPPlatform platform, @NotNull IWorkspace eclipseWorkspace) {
         super(platform, eclipseWorkspace);
 
         loadExtensions(Platform.getExtensionRegistry());
         loadExternalFileProperties();
     }
 
-    private void loadExtensions(IExtensionRegistry registry) {
+    @Nullable
+    @Override
+    public <T> T adaptResource(DBFVirtualFileSystemRoot fsRoot, Path path, Class<T> adapter) {
+        if (adapter == IResource.class) {
+            // For Eclipse VFS we always need a project
+            // Although path is a remote file we have to represent it as IFile
+            // thus we need any IProject we have
+            // This is a bit inconsistent but we can just blame Eclipse VFS
+            if (!(activeProject instanceof DesktopProjectImpl dp)) {
+                return null;
+            }
+            return adapter.cast(ResourceUtils.createResourceFromPath(fsRoot, dp.getEclipseProject(), path));
+        }
+        return null;
+    }
+
+    private void loadExtensions(@NotNull IExtensionRegistry registry) {
         {
             IConfigurationElement[] extElements = registry.getConfigurationElementsFor(ResourceHandlerDescriptor.EXTENSION_ID);
             for (IConfigurationElement ext : extElements) {
@@ -81,13 +101,13 @@ public class DesktopWorkspaceImpl extends EclipseWorkspaceImpl implements DBPWor
 
     @Override
     public void dispose() {
-        super.dispose();
-
         // Dispose resource handlers
         for (ResourceHandlerDescriptor handlerDescriptor : this.handlerDescriptors) {
             handlerDescriptor.dispose();
         }
         this.handlerDescriptors.clear();
+
+        super.dispose();
     }
 
     private DBPResourceHandler getResourceHandler(DBPResourceTypeDescriptor resourceType) {
@@ -100,7 +120,7 @@ public class DesktopWorkspaceImpl extends EclipseWorkspaceImpl implements DBPWor
     }
 
     @Override
-    public DBPResourceHandler getResourceHandler(IResource resource) {
+    public DBPResourceHandler getResourceHandler(@Nullable IResource resource) {
         if (DBWorkbench.getPlatform().getApplication().isExclusiveMode()) {
             // Resource handlers are disabled in exclusive mode
             return null;
@@ -159,6 +179,7 @@ public class DesktopWorkspaceImpl extends EclipseWorkspaceImpl implements DBPWor
     }
 
 
+    @Nullable
     @Override
     public DBPImage getResourceIcon(DBPAdaptable resourceAdapter) {
         IResource resource = resourceAdapter.getAdapter(IResource.class);
@@ -289,6 +310,21 @@ public class DesktopWorkspaceImpl extends EclipseWorkspaceImpl implements DBPWor
         }
     }
 
+    @Override
+    public void renameProject(@NotNull DBPProject project, @NotNull String newName) throws DBException {
+        if (project instanceof DesktopProjectImpl projectImpl) {
+            IProject eclipseProject = projectImpl.getEclipseProject();
+            try {
+                project.updateProject(newName, null);
+                IProjectDescription description = eclipseProject.getDescription();
+                description.setName(newName);
+                eclipseProject.move(description, true, null);
+            } catch (CoreException e) {
+                throw new DBException("Error renaming project", e);
+            }
+        }
+    }
+
     @NotNull
     @Override
     public DBPProject createProject(@NotNull String name, @Nullable String description) throws DBException {
@@ -341,6 +377,7 @@ public class DesktopWorkspaceImpl extends EclipseWorkspaceImpl implements DBPWor
         refreshWorkspaceContents(monitor);
     }
 
+    @NotNull
     @Override
     public Map<String, Object> getFileProperties(File file) {
         synchronized (externalFileProperties) {
@@ -348,6 +385,7 @@ public class DesktopWorkspaceImpl extends EclipseWorkspaceImpl implements DBPWor
         }
     }
 
+    @Nullable
     @Override
     public Object getFileProperty(File file, String property) {
         synchronized (externalFileProperties) {
@@ -375,6 +413,7 @@ public class DesktopWorkspaceImpl extends EclipseWorkspaceImpl implements DBPWor
         saveExternalFileProperties();
     }
 
+    @NotNull
     @Override
     public Map<String, Map<String, Object>> getAllFiles() {
         synchronized (externalFileProperties) {
@@ -415,8 +454,9 @@ public class DesktopWorkspaceImpl extends EclipseWorkspaceImpl implements DBPWor
             super("External files metadata saver");
         }
 
+        @NotNull
         @Override
-        protected IStatus run(DBRProgressMonitor monitor) {
+        protected IStatus run(@NotNull DBRProgressMonitor monitor) {
             synchronized (externalFileProperties) {
                 java.nio.file.Path propsFile = GeneralUtils.getMetadataFolder(getAbsolutePath())
                     .resolve(EXT_FILES_PROPS_STORE);

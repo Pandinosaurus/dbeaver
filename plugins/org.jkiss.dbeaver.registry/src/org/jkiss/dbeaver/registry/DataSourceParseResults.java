@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2025 DBeaver Corp and others
+ * Copyright (C) 2010-2026 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,13 +18,18 @@ package org.jkiss.dbeaver.registry;
 
 import org.jkiss.dbeaver.model.DBPDataSourceContainer;
 import org.jkiss.dbeaver.model.DBPDataSourceFolder;
+import org.jkiss.dbeaver.model.net.DBWNetworkProfile;
 
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-class DataSourceParseResults {
+public class DataSourceParseResults {
     public final Set<DBPDataSourceContainer> updatedDataSources = new LinkedHashSet<>();
     public final Set<DBPDataSourceContainer> addedDataSources = new LinkedHashSet<>();
+    public final Set<DBPDataSourceContainer> removedDataSources = new LinkedHashSet<>();
     public final Set<DBPDataSourceFolder> addedFolders = new LinkedHashSet<>();
     public final Set<DBPDataSourceFolder> updatedFolders = new LinkedHashSet<>();
+    public final Set<DBPDataSourceFolder> removedFolders = new LinkedHashSet<>();
+    public final Set<DBWNetworkProfile> updatedProfiles = new LinkedHashSet<>();
+    public final Set<DBWNetworkProfile> removedProfiles = new LinkedHashSet<>();
 }

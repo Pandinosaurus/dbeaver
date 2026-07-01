@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2025 DBeaver Corp and others
+ * Copyright (C) 2010-2026 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,6 +40,7 @@ import org.jkiss.dbeaver.model.meta.PropertyLength;
 import org.jkiss.dbeaver.model.runtime.DBRProgressMonitor;
 import org.jkiss.dbeaver.model.runtime.VoidProgressMonitor;
 import org.jkiss.dbeaver.model.struct.DBSDataContainer;
+import org.jkiss.dbeaver.model.struct.DBSDescriptionEditable;
 import org.jkiss.dbeaver.model.struct.DBSEntityConstraintType;
 import org.jkiss.dbeaver.model.struct.DBSObject;
 import org.jkiss.dbeaver.model.struct.cache.DBSObjectCache;
@@ -55,7 +56,7 @@ import java.util.*;
 /**
  * Generic table
  */
-public abstract class GenericTableBase extends JDBCTable<GenericDataSource, GenericStructContainer> implements DBPRefreshableObject, DBPSystemObject, DBPScriptObject {
+public abstract class GenericTableBase extends JDBCTable<GenericDataSource, GenericStructContainer> implements DBPRefreshableObject, DBPSystemObject, DBPScriptObject, DBSDescriptionEditable {
     private static final Log log = Log.getLog(GenericTableBase.class);
 
     private String tableType;
@@ -165,6 +166,7 @@ public abstract class GenericTableBase extends JDBCTable<GenericDataSource, Gene
     }
 
     @Property(viewable = true, optional = true, order = 3, labelProvider = GenericCatalog.CatalogNameTermProvider.class)
+    @Nullable
     public GenericCatalog getCatalog() {
         if (!CommonUtils.isEmpty(tableCatalogName)) {
             getDataSource().getCatalog(tableCatalogName);
@@ -267,7 +269,7 @@ public abstract class GenericTableBase extends JDBCTable<GenericDataSource, Gene
     }
 
     @Override
-    public Collection<GenericTableForeignKey> getReferences(@NotNull DBRProgressMonitor monitor)
+    public Collection<? extends GenericTableForeignKey> getReferences(@NotNull DBRProgressMonitor monitor)
         throws DBException {
         if (getDataSource().getInfo().supportsReferentialIntegrity()) {
             return loadReferences(monitor);
@@ -305,7 +307,8 @@ public abstract class GenericTableBase extends JDBCTable<GenericDataSource, Gene
         return description;
     }
 
-    public void setDescription(String description) {
+    @Override
+    public void setDescription(@Nullable String description) {
         this.description = description;
     }
 
@@ -399,7 +402,7 @@ public abstract class GenericTableBase extends JDBCTable<GenericDataSource, Gene
 
     private List<GenericTableForeignKey> loadReferences(DBRProgressMonitor monitor)
         throws DBException {
-        if (!isPersisted() || !getDataSource().getInfo().supportsReferentialIntegrity() || monitor == null) {
+        if (!isPersisted() || !getDataSource().getInfo().supportsReferentialIntegrity() || monitor == null || monitor.isForceCacheUsage()) {
             return new ArrayList<>();
         }
         try (JDBCSession session = DBUtils.openMetaSession(monitor, this, "Load table relations")) {

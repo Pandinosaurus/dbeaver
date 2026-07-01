@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2025 DBeaver Corp and others
+ * Copyright (C) 2010-2026 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,11 +26,13 @@ import org.jkiss.dbeaver.model.preferences.DBPPreferenceStore;
 import org.jkiss.dbeaver.model.runtime.features.DBRFeatureRegistry;
 import org.jkiss.dbeaver.ui.AWTUtils;
 import org.jkiss.dbeaver.ui.ConnectionFeatures;
+import org.jkiss.dbeaver.ui.ShellUtils;
 import org.jkiss.dbeaver.ui.browser.BrowsePeerMethods;
 import org.jkiss.dbeaver.ui.preferences.UIPreferences;
 import org.osgi.framework.Bundle;
 import org.osgi.framework.BundleContext;
 
+import java.awt.*;
 import java.io.PrintStream;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
@@ -72,24 +74,34 @@ public class DBeaverActivator extends AbstractUIPlugin {
         } catch (MissingResourceException x) {
             coreResourceBundle = null;
         }
-        if (getPreferenceStore().getBoolean(UIPreferences.UI_USE_EMBEDDED_AUTH)) {
+        if (AWTUtils.isDesktopSupported()) {
             try {
-                if (AWTUtils.isDesktopSupported()) {
-                    injectProxyPeer();
-                } else {
-                    getLog().warn("Desktop interface not available");
-                    getPreferenceStore().setValue(UIPreferences.UI_USE_EMBEDDED_AUTH, false);
-                }
+                injectProxyPeer();
             } catch (Throwable e) {
                 getLog().warn(e.getMessage());
                 getPreferenceStore().setValue(UIPreferences.UI_USE_EMBEDDED_AUTH, false);
             }
+        } else {
+            getLog().warn("Desktop interface not available");
+            getPreferenceStore().setValue(UIPreferences.UI_USE_EMBEDDED_AUTH, false);
         }
     }
 
     private void injectProxyPeer() throws NoSuchFieldException, IllegalAccessException {
         ProxyInjector proxyInjector = new ProxyInjector();
-        proxyInjector.injectBrowseInteraction(BrowsePeerMethods::canBrowseInSWTBrowser, BrowsePeerMethods::browseInSWTBrowser);
+        if (getPreferenceStore().getBoolean(UIPreferences.UI_USE_EMBEDDED_AUTH)) {
+            // Redirect BROWSE requests to the embedded browser
+            proxyInjector.injectBrowseInteraction(
+                BrowsePeerMethods::canBrowseInSWTBrowser,
+                BrowsePeerMethods::browseInSWTBrowser
+            );
+        } else if (!Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
+            // Redirect BROWSE requests to the system browser if it's not supported by AWT
+            proxyInjector.injectBrowseInteraction(
+                () -> true,
+                uri -> ShellUtils.launchProgram(uri.toString())
+            );
+        }
     }
 
     @Override
@@ -102,13 +114,17 @@ public class DBeaverActivator extends AbstractUIPlugin {
             debugWriter.close();
             debugWriter = null;
         }
-        instance = null;
+        // Do not nullify instance as it can be used during shutdown by late-activating services
+        // code activator is needed to obtain main app preferences.
+        //instance = null;
 
         super.stop(context);
     }
 
     private void shutdownUI() {
-        DesktopUI.disposeUI();
+        if (DesktopPlatform.instance != null) {
+            DesktopUI.disposeUI();
+        }
     }
 
     /**

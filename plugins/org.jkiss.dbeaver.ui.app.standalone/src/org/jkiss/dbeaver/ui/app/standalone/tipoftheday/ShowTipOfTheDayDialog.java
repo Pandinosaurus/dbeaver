@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2025 DBeaver Corp and others
+ * Copyright (C) 2010-2026 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,10 +18,8 @@ package org.jkiss.dbeaver.ui.app.standalone.tipoftheday;
 
 import org.eclipse.jface.dialogs.IDialogConstants;
 import org.eclipse.jface.dialogs.IDialogSettings;
-import org.eclipse.jface.resource.JFaceResources;
 import org.eclipse.swt.SWT;
-import org.eclipse.swt.events.SelectionAdapter;
-import org.eclipse.swt.events.SelectionEvent;
+import org.eclipse.swt.events.SelectionListener;
 import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.graphics.FontData;
 import org.eclipse.swt.layout.GridData;
@@ -31,8 +29,8 @@ import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.ui.PartInitException;
-import org.eclipse.ui.forms.events.HyperlinkAdapter;
 import org.eclipse.ui.forms.events.HyperlinkEvent;
+import org.eclipse.ui.forms.events.IHyperlinkListener;
 import org.eclipse.ui.forms.widgets.Form;
 import org.eclipse.ui.forms.widgets.FormText;
 import org.eclipse.ui.forms.widgets.FormToolkit;
@@ -41,9 +39,11 @@ import org.jkiss.code.NotNull;
 import org.jkiss.dbeaver.Log;
 import org.jkiss.dbeaver.model.preferences.DBPPreferenceStore;
 import org.jkiss.dbeaver.runtime.DBWorkbench;
+import org.jkiss.dbeaver.ui.BaseThemeSettings;
 import org.jkiss.dbeaver.ui.ShellUtils;
 import org.jkiss.dbeaver.ui.UIUtils;
 import org.jkiss.dbeaver.ui.dialogs.AbstractPopupPanel;
+import org.jkiss.utils.CommonUtils;
 
 import java.net.URI;
 import java.util.List;
@@ -61,8 +61,8 @@ public class ShowTipOfTheDayDialog extends AbstractPopupPanel {
     private ScrolledFormText scrolledFormText;
     private int tipIndex;
 
-    public ShowTipOfTheDayDialog(@NotNull Shell parentShell, List<String> tips) {
-        super(parentShell, "Tip of the day");
+    public ShowTipOfTheDayDialog(@NotNull Shell parentShell, @NotNull List<String> tips) {
+        super(parentShell, TipOfTheDayMessages.tip_of_the_day_title);
         this.tips = List.copyOf(tips);
         setModeless(true);
         setBlockOnOpen(false);
@@ -70,12 +70,12 @@ public class ShowTipOfTheDayDialog extends AbstractPopupPanel {
 
     public static boolean isShowOnStartup() {
         DBPPreferenceStore store = DBWorkbench.getPlatform().getPreferenceStore();
-        return store.getBoolean(UI_SHOW_TIP_OF_THE_DAY_ON_STARTUP);
+        return CommonUtils.toBoolean(store.getString(UI_SHOW_TIP_OF_THE_DAY_ON_STARTUP), true);
     }
 
     public static void setShowOnStartup(boolean showOnStartup) {
         DBPPreferenceStore store = DBWorkbench.getPlatform().getPreferenceStore();
-        store.setValue(UI_SHOW_TIP_OF_THE_DAY_ON_STARTUP, showOnStartup);
+        store.setValue(UI_SHOW_TIP_OF_THE_DAY_ON_STARTUP, String.valueOf(showOnStartup));
     }
 
     @Override
@@ -85,7 +85,6 @@ public class ShowTipOfTheDayDialog extends AbstractPopupPanel {
 
     @Override
     protected Control createContents(Composite parent) {
-        //[dbeaver/dbeaver#11526]
         Control contents = super.createContents(parent);
         UIUtils.asyncExec(() -> {
             if (!tipArea.isDisposed()) {
@@ -95,14 +94,12 @@ public class ShowTipOfTheDayDialog extends AbstractPopupPanel {
         return contents;
     }
 
+    @NotNull
     @Override
-    protected Composite createDialogArea(Composite parent) {
-        getShell().setText("Tip of the day");
+    protected Composite createDialogArea(@NotNull Composite parent) {
+        getShell().setText(TipOfTheDayMessages.tip_of_the_day_title);
 
-        tipIndex = new Random(System.currentTimeMillis()).nextInt(tips.size());
-
-
-        Font dialogFont = JFaceResources.getDialogFont();
+        Font dialogFont = BaseThemeSettings.instance.baseFont;
         FontData[] fontData = dialogFont.getFontData();
         for (int i = 0; i < fontData.length; i++) {
             FontData fd = fontData[i];
@@ -110,6 +107,8 @@ public class ShowTipOfTheDayDialog extends AbstractPopupPanel {
         }
         Font largeFont = new Font(dialogFont.getDevice(), fontData);
         parent.addDisposeListener(e -> largeFont.dispose());
+
+        tipIndex = new Random(System.currentTimeMillis()).nextInt(tips.size());
 
         Composite dialogArea = super.createDialogArea(parent);
 
@@ -125,7 +124,6 @@ public class ShowTipOfTheDayDialog extends AbstractPopupPanel {
         Form form = toolkit.createForm(tipArea);
         form.setLayoutData(new GridData(GridData.FILL_BOTH));
         form.setLayout(new GridLayout(1, true));
-        //form.setData(FormToolkit.KEY_DRAW_BORDER, FormToolkit.TEXT_BORDER);
         form.getBody().setLayoutData(new GridData(GridData.FILL_BOTH));
         form.getBody().setLayout(new GridLayout(1, true));
 
@@ -141,30 +139,19 @@ public class ShowTipOfTheDayDialog extends AbstractPopupPanel {
         toolkit.adapt(formText, false, false);
         formText.setMenu(form.getBody().getMenu());
 
-            //toolkit.createFormText(form.getBody(), false);
         GridData gd = new GridData(GridData.FILL_BOTH);
         gd.widthHint = 300;
         gd.heightHint = 100;
         formText.setLayoutData(gd);
         formText.setFont(largeFont);
-        formText.addHyperlinkListener(new HyperlinkAdapter() {
-            @Override
-            public void linkActivated(HyperlinkEvent e) {
-                navigateLink(e);
-            }
-        });
+        formText.addHyperlinkListener(IHyperlinkListener.linkActivatedAdapter(this::navigateLink));
         showTip();
 
         if (displayShowOnStartup) {
-            Button showTipButton = toolkit.createButton(form.getBody(), "Show tips on startup", SWT.CHECK);
+            Button showTipButton = UIUtils.createCheckbox(form.getBody(), TipOfTheDayMessages.show_tips_on_startup, isShowOnStartup());
 
-            showTipButton.setSelection(isShowOnStartup());
-            showTipButton.addSelectionListener(new SelectionAdapter() {
-                @Override
-                public void widgetSelected(SelectionEvent e) {
-                    setShowOnStartup(showTipButton.getSelection());
-                }
-            });
+            showTipButton.addSelectionListener(SelectionListener.widgetSelectedAdapter(e ->
+                setShowOnStartup(showTipButton.getSelection())));
 
             form.getBody().setTabList(new Control[] { showTipButton });
         }
@@ -232,7 +219,7 @@ public class ShowTipOfTheDayDialog extends AbstractPopupPanel {
     }
 
     @Override
-    protected void createButtonsForButtonBar(Composite parent) {
+    protected void createButtonsForButtonBar(@NotNull Composite parent) {
         createButton(parent, IDialogConstants.BACK_ID, IDialogConstants.BACK_LABEL, false);
         createButton(parent, IDialogConstants.NEXT_ID, IDialogConstants.NEXT_LABEL, false);
         createButton(parent, IDialogConstants.OK_ID, IDialogConstants.CLOSE_LABEL, true);

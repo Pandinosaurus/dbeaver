@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2025 DBeaver Corp and others
+ * Copyright (C) 2010-2026 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,6 +40,7 @@ import org.jkiss.dbeaver.ui.UIUtils;
 import org.jkiss.dbeaver.ui.editors.erd.ERDUIConstants;
 import org.jkiss.dbeaver.ui.editors.erd.command.EntityAddCommand;
 import org.jkiss.dbeaver.ui.editors.erd.command.EntityRemoveCommand;
+import org.jkiss.dbeaver.ui.editors.erd.editor.ERDEditorPart;
 import org.jkiss.dbeaver.ui.editors.erd.editor.ERDThemeSettings;
 import org.jkiss.dbeaver.ui.editors.erd.figures.EntityDiagramFigure;
 import org.jkiss.dbeaver.ui.editors.erd.internal.ERDUIActivator;
@@ -74,8 +75,9 @@ public class DiagramPart extends PropertyAwarePart {
                 if (!GraphAnimation.captureLayout(getFigure())) {
                     return;
                 }
-                while (GraphAnimation.step())
+                while (GraphAnimation.step()) {
                     getFigure().getUpdateManager().performUpdate();
+                }
                 GraphAnimation.end();
             } else {
                 getFigure().getUpdateManager().performUpdate();
@@ -93,8 +95,7 @@ public class DiagramPart extends PropertyAwarePart {
      * performUpdate() when it changes
      */
     @Override
-    public void activate()
-    {
+    public void activate() {
         super.activate();
         getViewer().getEditDomain().getCommandStack().addCommandStackEventListener(stackListener);
     }
@@ -125,10 +126,11 @@ public class DiagramPart extends PropertyAwarePart {
         figure.setLayoutManager(delegatingLayoutManager);
         Control control = getViewer().getControl();
         ConnectionLayer cLayer = (ConnectionLayer) getLayer(LayerConstants.CONNECTION_LAYER);
-        if ((control.getStyle() & SWT.MIRRORED) == 0) {
+        if (control != null && (control.getStyle() & SWT.MIRRORED) == 0) {
             cLayer.setAntialias(SWT.ON);
         }
-        ERDConnectionRouterDescriptor routerDescriptor = getEditor().getDiagramRouter();
+        ERDEditorPart editor = getEditor();
+        ERDConnectionRouterDescriptor routerDescriptor = editor == null ? null : editor.getDiagramRouter();
         if (routerDescriptor == null) {
             routerDescriptor = ERDConnectionRouterRegistry.getInstance().getActiveRouter();
         }
@@ -140,15 +142,16 @@ public class DiagramPart extends PropertyAwarePart {
 
     @Override
     @NotNull
-    public EntityDiagram getDiagram()
-    {
+    public EntityDiagram getDiagram() {
         return (EntityDiagram) getModel();
     }
 
+    @NotNull
     public Font getNormalFont() {
         return ERDThemeSettings.instance.diagramFont;
     }
 
+    @NotNull
     public Font getBoldFont() {
         return ERDThemeSettings.instance.diagramFontBold;
     }
@@ -163,10 +166,11 @@ public class DiagramPart extends PropertyAwarePart {
         }
         RearrangeDiagramService diagramService = new RearrangeDiagramService(this);
         LoadingJob.createService(
-            diagramService,
-            getEditor()
-                .getProgressControl()
-                .createLoadVisualizer())
+                diagramService,
+                getEditor()
+                    .getProgressControl()
+                    .createLoadVisualizer()
+            )
             .schedule();
     }
 
@@ -193,7 +197,7 @@ public class DiagramPart extends PropertyAwarePart {
         monitor.worked(1);
     }
 
-    private void resetConnectionConstraints(DBRProgressMonitor monitor, List<?> sourceConnections) {
+    private void resetConnectionConstraints(@NotNull DBRProgressMonitor monitor, @Nullable List<?> sourceConnections) {
         if (monitor.isCanceled()) {
             return;
         }
@@ -214,8 +218,7 @@ public class DiagramPart extends PropertyAwarePart {
      * @return the children Model objects as a new ArrayList
      */
     @Override
-    protected List<?> getModelChildren()
-    {
+    protected List<?> getModelChildren() {
         return getDiagram().getContents();
     }
 
@@ -223,8 +226,7 @@ public class DiagramPart extends PropertyAwarePart {
      * @see org.eclipse.gef.editparts.AbstractEditPart#isSelectable()
      */
     @Override
-    public boolean isSelectable()
-    {
+    public boolean isSelectable() {
         return false;
     }
 
@@ -233,9 +235,9 @@ public class DiagramPart extends PropertyAwarePart {
      * left to the delegating layout manager
      */
     @Override
-    protected void createEditPolicies()
-    {
-        if (!getEditor().isReadOnly()) {
+    protected void createEditPolicies() {
+        ERDEditorPart editor = getEditor();
+        if (editor != null && !editor.isReadOnly()) {
             installEditPolicy(EditPolicy.CONTAINER_ROLE, new DiagramContainerEditPolicy());
             installEditPolicy(EditPolicy.LAYOUT_ROLE, null);
             getDiagram().getModelAdapter().installPartEditPolicies(this);
@@ -247,9 +249,7 @@ public class DiagramPart extends PropertyAwarePart {
      * Updates the table bounds in the model so that the same bounds can be
      * restored after saving
      */
-    public void setTableModelBounds()
-    {
-
+    public void setTableModelBounds() {
         List<?> entityParts = getChildren();
 
         for (Object child : entityParts) {
@@ -274,11 +274,10 @@ public class DiagramPart extends PropertyAwarePart {
      * handling), and sets layout constraint data
      *
      * @return whether the procedure execute successfully without any omissions.
-     *         The latter occurs if any Table objects have no bounds set or if
-     *         no figure is available for the EntityPart
+     * The latter occurs if any Table objects have no bounds set or if
+     * no figure is available for the EntityPart
      */
-    public boolean setTableFigureBounds(boolean updateConstraint)
-    {
+    public boolean setTableFigureBounds(boolean updateConstraint) {
         List<?> nodeParts = getChildren();
 
         for (Object child : nodeParts) {
@@ -307,10 +306,7 @@ public class DiagramPart extends PropertyAwarePart {
 
     }
 
-    public void changeLayout()
-    {
-        //Boolean layoutType = (Boolean) evt.getNewValue();
-        //boolean isManualLayoutDesired = layoutType.booleanValue();
+    public void changeLayout() {
         getFigure().setLayoutManager(delegatingLayoutManager);
     }
 
@@ -318,8 +314,7 @@ public class DiagramPart extends PropertyAwarePart {
      * Sets layout constraint only if XYLayout is active
      */
     @Override
-    public void setLayoutConstraint(EditPart child, IFigure childFigure, Object constraint)
-    {
+    public void setLayoutConstraint(EditPart child, IFigure childFigure, Object constraint) {
         super.setLayoutConstraint(child, childFigure, constraint);
     }
 
@@ -329,18 +324,16 @@ public class DiagramPart extends PropertyAwarePart {
      * delegate layout to the XY or Graph layout
      */
     @Override
-    protected void handleChildChange(PropertyChangeEvent evt)
-    {
+    protected void handleChildChange(PropertyChangeEvent evt) {
         super.handleChildChange(evt);
     }
 
     @Override
-    public Object getAdapter(Class key)
-    {
+    public <T> T getAdapter(Class<T> key) {
         if (key == SnapToHelper.class) {
             final DBPPreferenceStore store = ERDUIActivator.getDefault().getPreferences();
             if (store.getBoolean(ERDUIConstants.PREF_GRID_ENABLED) && store.getBoolean(ERDUIConstants.PREF_GRID_SNAP_ENABLED)) {
-                return new SnapToGrid(this);
+                return key.cast(new SnapToGrid(this));
             } else {
                 return null;
             }
@@ -349,60 +342,59 @@ public class DiagramPart extends PropertyAwarePart {
     }
 
     @Nullable
-    public NodePart getChildByObject(Object object) {
+    public NodePart getChildByObject(@Nullable Object object) {
         for (Object child : getChildren()) {
-            if (child instanceof NodePart && ((NodePart) child).getElement().getObject() == object) {
-                return (NodePart) child;
+            if (child instanceof NodePart nodePart && nodePart.getElement().getObject() == object) {
+                return nodePart;
             }
         }
         return null;
     }
 
     @Nullable
-    public EntityPart getEntityPart(ERDEntity erdEntity)
-    {
+    public EntityPart getEntityPart(@Nullable ERDEntity erdEntity) {
         for (Object child : getChildren()) {
-            if (child instanceof EntityPart && ((EntityPart) child).getEntity() == erdEntity) {
-                return (EntityPart) child;
-            }
-        }
-        return null;
-    }
-
-    public List<EntityPart> getEntityParts() {
-        List<EntityPart> result = new ArrayList<>();
-        for (Object child : getChildren()) {
-            if (child instanceof EntityPart) {
-                result.add((EntityPart)child);
-            }
-        }
-        return result;
-    }
-
-    @Nullable
-    public NotePart getNotePart(ERDNote erdNote)
-    {
-        for (Object child : getChildren()) {
-            if (child instanceof NotePart && ((NotePart) child).getNote() == erdNote) {
-                return (NotePart) child;
+            if (child instanceof EntityPart entityPart && entityPart.getEntity() == erdEntity) {
+                return entityPart;
             }
         }
         return null;
     }
 
     @NotNull
-    public Command createEntityAddCommand(List<ERDEntity> entities, Point location) {
+    public List<EntityPart> getEntityParts() {
+        List<EntityPart> result = new ArrayList<>();
+        for (Object child : getChildren()) {
+            if (child instanceof EntityPart  entityPart) {
+                result.add(entityPart);
+            }
+        }
+        return result;
+    }
+
+    @Nullable
+    public NotePart getNotePart(@Nullable ERDNote erdNote) {
+        for (Object child : getChildren()) {
+            if (child instanceof NotePart notePart && notePart.getNote() == erdNote) {
+                return notePart;
+            }
+        }
+        return null;
+    }
+
+    @NotNull
+    public Command createEntityAddCommand(@NotNull List<ERDEntity> entities, @NotNull Point location) {
         return new EntityAddCommand(this, entities, location);
     }
 
-    public Command createEntityDeleteCommand(EntityPart entityPart) {
+    @NotNull
+    public Command createEntityDeleteCommand(@NotNull EntityPart entityPart) {
         return new EntityRemoveCommand(entityPart);
     }
 
     @Override
-    public String toString()
-    {
-        return ERDUIMessages.entity_diagram_ + " " + getDiagram().getName();
+    public String toString() {
+        return ERDUIMessages.entity_diagram_;
     }
 
     /**
