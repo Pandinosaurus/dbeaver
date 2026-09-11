@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2025 DBeaver Corp and others
+ * Copyright (C) 2010-2026 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,24 +23,23 @@ import org.eclipse.jface.viewers.Viewer;
 import org.eclipse.jface.viewers.ViewerFilter;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.ModifyListener;
-import org.eclipse.swt.events.SelectionAdapter;
-import org.eclipse.swt.events.SelectionEvent;
+import org.eclipse.swt.events.SelectionListener;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Combo;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Text;
+import org.eclipse.ui.plugin.AbstractUIPlugin;
 import org.jkiss.code.NotNull;
-import org.jkiss.dbeaver.DBException;
+import org.jkiss.code.Nullable;
 import org.jkiss.dbeaver.ext.athena.model.AWSRegion;
 import org.jkiss.dbeaver.ext.athena.model.AthenaConstants;
-import org.jkiss.dbeaver.ext.athena.ui.AthenaActivator;
+import org.jkiss.dbeaver.ext.athena.ui.AthenaUIConstants;
 import org.jkiss.dbeaver.ext.athena.ui.internal.AthenaMessages;
 import org.jkiss.dbeaver.model.DBPDataSourceContainer;
 import org.jkiss.dbeaver.model.connection.DBPConnectionConfiguration;
 import org.jkiss.dbeaver.model.navigator.DBNNode;
-import org.jkiss.dbeaver.model.navigator.DBNProject;
 import org.jkiss.dbeaver.model.navigator.fs.DBNFileSystem;
 import org.jkiss.dbeaver.model.navigator.fs.DBNFileSystems;
 import org.jkiss.dbeaver.model.navigator.fs.DBNPathBase;
@@ -55,10 +54,8 @@ import org.jkiss.dbeaver.ui.dialogs.connection.DriverPropertiesDialogPage;
 import org.jkiss.dbeaver.ui.internal.UIConnectionMessages;
 import org.jkiss.dbeaver.ui.navigator.database.load.TreeNodeSpecial;
 import org.jkiss.dbeaver.ui.navigator.dialogs.ObjectBrowserDialogBase;
-import org.jkiss.dbeaver.utils.RuntimeUtils;
 import org.jkiss.utils.CommonUtils;
 
-import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
@@ -73,7 +70,8 @@ public class AthenaConnectionPage extends ConnectionPageWithAuth implements IDia
     private Combo awsRegionCombo;
     private Text s3LocationText;
 
-    private static final ImageDescriptor logoImage = AthenaActivator.getImageDescriptor("icons/aws_athena_logo.png"); //$NON-NLS-1$
+    private static final ImageDescriptor logoImage = AbstractUIPlugin.imageDescriptorFromPlugin(
+        AthenaUIConstants.PLUGIN_ID, "icons/aws_athena_logo.png"); //$NON-NLS-1$
     private final DriverPropertiesDialogPage driverPropsPage;
     private Button showCatalogsCheck;
 
@@ -96,19 +94,29 @@ public class AthenaConnectionPage extends ConnectionPageWithAuth implements IDia
         ModifyListener textListener = e -> site.updateButtons();
 
         {
-            Composite addrGroup = UIUtils.createControlGroup(settingsGroup, AthenaMessages.label_connection, 2, 0, 0);
-            addrGroup.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+            Composite addrGroup = UIUtils.createTitledComposite(
+                settingsGroup,
+                AthenaMessages.label_connection,
+                3,
+                GridData.FILL_HORIZONTAL
+            );
 
             awsRegionCombo = UIUtils.createLabelCombo(addrGroup, AthenaMessages.label_region, SWT.DROP_DOWN);
             awsRegionCombo.addModifyListener(textListener);
+            UIUtils.setDefaultTextControlWidthHint(awsRegionCombo);
+
+            createDriverSubstitutionControls(addrGroup, 1, false);
 
             UIUtils.createControlLabel(addrGroup, AthenaMessages.label_s3_location); //$NON-NLS-2$ //$NON-NLS-1$ //$NON-NLS-1$ //$NON-NLS-1$
             Composite s3Group = UIUtils.createComposite(addrGroup, 1);
-            s3Group.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+            GridData gd = new GridData(GridData.FILL_HORIZONTAL);
+            gd.horizontalSpan = 2;
+            s3Group.setLayoutData(gd);
             s3LocationText = new Text(s3Group, SWT.BORDER);
             s3LocationText.setToolTipText(AthenaMessages.label_s3_output_location);
             s3LocationText.addModifyListener(textListener);
             s3LocationText.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+            UIUtils.setDefaultTextControlWidthHint(s3LocationText);
 
             if (FileSystemProviderRegistry.getInstance().getProvider("aws-s3") != null) {
                 ((GridLayout) s3Group.getLayout()).numColumns++;
@@ -116,11 +124,9 @@ public class AthenaConnectionPage extends ConnectionPageWithAuth implements IDia
                     s3Group,
                     UIConnectionMessages.controls_client_home_selector_browse,
                     DBeaverIcons.getImage(UIIcon.OPEN),
-                    new SelectionAdapter() {
-                        @Override
-                        public void widgetSelected(SelectionEvent e) {
-                            DBNProject projectNode = DBWorkbench.getPlatform().getNavigatorModel().getRoot().getProjectNode(getSite().getProject());
-                            DBNFileSystems fsRootNode = projectNode.getExtraNode(DBNFileSystems.class);
+                    SelectionListener.widgetSelectedAdapter(e -> {
+                            DBNFileSystems fsRootNode = DBWorkbench.getPlatform().getNavigatorModel().getRoot()
+                                .getExtraNode(DBNFileSystems.class);
                             if (fsRootNode == null) {
                                 DBWorkbench.getPlatformUI().showMessageBox("Cloud support required", "Project file system node not found", true);
                                 return;
@@ -173,8 +179,7 @@ public class AthenaConnectionPage extends ConnectionPageWithAuth implements IDia
                                     }
                                 }
                             }
-                        }
-                    });
+                        }));
             }
 
             UIUtils.addVariablesToControl(s3LocationText, getAvailableVariables(), "S3 location pattern");
@@ -192,15 +197,13 @@ public class AthenaConnectionPage extends ConnectionPageWithAuth implements IDia
     }
 
     private DBNNode findFileSystemNode(DBNFileSystems fsRootNode, String s3Path) {
-        final DBNPathBase[] result = new DBNPathBase[1];
-        RuntimeUtils.runTask(monitor -> {
-            try {
-                result[0] = fsRootNode.findNodeByPath(monitor, s3Path, true);
-            } catch (DBException e) {
-                throw new InvocationTargetException(e);
-            }
-        }, "Load S3 node", 10000);
-        return result[0];
+        try {
+            return DBWorkbench.getPlatformUI().runWithProgress(monitor ->
+                fsRootNode.findNodeByPath(monitor, s3Path, true));
+        } catch (Exception e) {
+            DBWorkbench.getPlatformUI().showError("Error opening file system", "Error while opening S3 file system", e);
+            return null;
+        }
     }
 
     @Override
@@ -248,7 +251,7 @@ public class AthenaConnectionPage extends ConnectionPageWithAuth implements IDia
     }
 
     @Override
-    public void saveSettings(DBPDataSourceContainer dataSource) {
+    public void saveSettings(@NotNull DBPDataSourceContainer dataSource) {
         DBPConnectionConfiguration connectionInfo = dataSource.getConnectionConfiguration();
         if (awsRegionCombo != null) {
             connectionInfo.setServerName(awsRegionCombo.getText().trim());
@@ -263,6 +266,7 @@ public class AthenaConnectionPage extends ConnectionPageWithAuth implements IDia
         super.saveSettings(dataSource);
     }
 
+    @Nullable
     @Override
     public IDialogPage[] getDialogPages(boolean extrasOnly, boolean forceCreate) {
         return new IDialogPage[]{

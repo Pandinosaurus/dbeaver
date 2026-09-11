@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2025 DBeaver Corp and others
+ * Copyright (C) 2010-2026 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,12 +43,10 @@ import org.eclipse.ui.texteditor.ITextEditorActionDefinitionIds;
 import org.jkiss.dbeaver.Log;
 import org.jkiss.dbeaver.ModelPreferences;
 import org.jkiss.dbeaver.core.CoreMessages;
-import org.jkiss.dbeaver.core.ui.services.ApplicationPolicyService;
 import org.jkiss.dbeaver.model.DBIcon;
 import org.jkiss.dbeaver.runtime.DBWorkbench;
 import org.jkiss.dbeaver.ui.*;
 import org.jkiss.dbeaver.ui.app.standalone.about.AboutBoxAction;
-import org.jkiss.dbeaver.ui.app.standalone.internal.CoreApplicationActivator;
 import org.jkiss.dbeaver.ui.app.standalone.internal.CoreApplicationMessages;
 import org.jkiss.dbeaver.ui.app.standalone.update.CheckForUpdateAction;
 import org.jkiss.dbeaver.ui.controls.StatusLineContributionItemEx;
@@ -57,6 +55,7 @@ import org.jkiss.dbeaver.ui.navigator.database.DatabaseNavigatorView;
 import org.jkiss.dbeaver.ui.navigator.project.ProjectExplorerView;
 import org.jkiss.dbeaver.ui.navigator.project.ProjectNavigatorView;
 import org.jkiss.dbeaver.ui.preferences.PrefPageDatabaseUserInterface;
+import org.jkiss.dbeaver.ui.services.ApplicationPolicyService;
 import org.jkiss.utils.ArrayUtils;
 import org.jkiss.utils.BeanUtils;
 import org.jkiss.utils.CommonUtils;
@@ -64,6 +63,7 @@ import org.jkiss.utils.StandardConstants;
 import org.osgi.framework.Bundle;
 
 import java.lang.reflect.Field;
+import java.util.Date;
 import java.util.Locale;
 import java.util.TimeZone;
 
@@ -113,7 +113,7 @@ public class ApplicationActionBarAdvisor extends ActionBarAdvisor
                 patchSearchIcons(actionSet);
             } else {
                 if (ArrayUtils.contains(REDUNTANT_ACTIONS_SETS, actionSet.getId())) {
-                    log.debug("Disable Eclipse action set '" + actionSet.getId() + "'");
+                    log.trace("Disable Eclipse action set '" + actionSet.getId() + "'");
                     IExtension ext = actionSet.getConfigurationElement().getDeclaringExtension();
                     asr.removeExtension(ext, new Object[]{actionSet});
                 }
@@ -161,7 +161,7 @@ public class ApplicationActionBarAdvisor extends ActionBarAdvisor
     protected void makeActions(final IWorkbenchWindow window)
     {
         removeUnWantedActions();
-        log.debug("Create workbench actions");
+        log.trace("Create workbench actions");
 
         register(ActionFactory.SAVE.create(window));
         register(ActionFactory.SAVE_AS.create(window));
@@ -354,8 +354,9 @@ public class ApplicationActionBarAdvisor extends ActionBarAdvisor
 
     private void updateTimezoneItem(StatusLineContributionItemEx tzItem) {
         TimeZone tzDefault = TimeZone.getDefault();
-        tzItem.setText(tzDefault.getDisplayName(false, TimeZone.SHORT));
-        tzItem.setToolTip(tzDefault.getDisplayName(false, TimeZone.LONG));
+        boolean inDaylight = tzDefault.inDaylightTime(new Date());
+        tzItem.setText(tzDefault.getDisplayName(inDaylight, TimeZone.SHORT));
+        tzItem.setToolTip(tzDefault.getDisplayName(inDaylight, TimeZone.LONG));
     }
 
     @Override

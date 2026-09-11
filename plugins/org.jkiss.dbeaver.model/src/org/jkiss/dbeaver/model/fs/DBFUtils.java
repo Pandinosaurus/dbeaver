@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2025 DBeaver Corp and others
+ * Copyright (C) 2010-2026 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,11 +26,15 @@ import org.jkiss.dbeaver.model.DBPDataSourceContainer;
 import org.jkiss.dbeaver.model.DBPDataSourceFolder;
 import org.jkiss.dbeaver.model.app.DBPDataSourceRegistry;
 import org.jkiss.dbeaver.model.app.DBPProject;
+import org.jkiss.dbeaver.model.app.DBPWorkspace;
+import org.jkiss.dbeaver.model.auth.SMSessionContext;
 import org.jkiss.dbeaver.model.connection.DBPConnectionConfiguration;
 import org.jkiss.dbeaver.model.connection.DBPDriver;
 import org.jkiss.dbeaver.model.runtime.DBRProgressMonitor;
 import org.jkiss.dbeaver.model.runtime.DBRRunnableContext;
+import org.jkiss.dbeaver.registry.fs.FileSystemProviderRegistry;
 import org.jkiss.dbeaver.runtime.DBWorkbench;
+import org.jkiss.dbeaver.utils.DataSourceUtils;
 import org.jkiss.utils.CommonUtils;
 import org.jkiss.utils.IOUtils;
 
@@ -38,13 +42,9 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.FileSystem;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
+import java.nio.file.*;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Virtual file system utils
@@ -52,12 +52,16 @@ import java.util.*;
 public class DBFUtils {
 
     private static final Log log = Log.getLog(DBFUtils.class);
+
+    public static final String DBVFS_NODE_TYPE = "dbvfs";
     public static final String PRODUCT_FEATURE_MULTI_FS = "multi-fs";
     private static final String FILE_DATABASES_FOLDER = "File databases";
 
     private static volatile Boolean SUPPORT_MULTI_FS = null;
 
     private static final Map<FileSystem, String> fileSystemIdCache = new IdentityHashMap<>();
+
+    private static final Map<String, FileSystem> externalFileSystemBySchema = new ConcurrentHashMap<>();
 
     public static boolean supportsMultiFileSystems(@NotNull DBPProject project) {
         if (SUPPORT_MULTI_FS == null) {
@@ -129,7 +133,7 @@ public class DBFUtils {
         }
     }
 
-    public static String convertPathToString(Path path) {
+    public static String convertPathToString(@NotNull Path path) {
         return IOUtils.isLocalPath(path) ? path.toString() : DBFUtils.getUriFromPath(path).toString();
     }
 
@@ -162,21 +166,6 @@ public class DBFUtils {
         return uri;
     }
 
-    public static Map<String, String> getQueryParameters(String query) {
-        if (query == null || query.isEmpty()) {
-            return Collections.emptyMap();
-        }
-        final Map<String, String> result = new LinkedHashMap<>();
-        final String[] pairs = query.split("&");
-        for (String pair : pairs) {
-            final int idx = pair.indexOf("=");
-            final String key = idx > 0 ? URLDecoder.decode(pair.substring(0, idx), StandardCharsets.UTF_8) : pair;
-            final String value = idx > 0 && pair.length() > idx + 1 ? URLDecoder.decode(pair.substring(idx + 1), StandardCharsets.UTF_8) : null;
-            result.put(key, value);
-        }
-        return result;
-    }
-
     public static String getFileSystemId(FileSystem fs) {
         return fileSystemIdCache.get(fs);
     }
@@ -194,10 +183,10 @@ public class DBFUtils {
      */
     @Nullable
     public static DBPDataSourceContainer createTemporaryDataSourceContainer(
-        String connectionName,
-        DBPProject project,
-        DBPDriver driver,
-        DBPConnectionConfiguration configuration
+        @NotNull String connectionName,
+        @NotNull DBPProject project,
+        @NotNull DBPDriver driver,
+        @NotNull DBPConnectionConfiguration configuration
     ) {
         DBPDataSourceRegistry registry = project.getDataSourceRegistry();
         String connectionId = "file_database_" + CommonUtils.truncateString(CommonUtils.escapeIdentifier(configuration.getDatabaseName()),
@@ -214,14 +203,8 @@ public class DBFUtils {
         }
         DBPDataSourceContainer dsContainer = registry.createDataSource(connectionId, driver, configuration);
         dsContainer.setExtension(DBConstants.PROP_ORIGINAL_FILE_PATH, configuration.getDatabaseName());
-        int conNameSuffix = 1;
         connectionName = "File - " + CommonUtils.truncateString(connectionName, 64);
-        String finalConnectionName = connectionName;
-        while (registry.findDataSourceByName(finalConnectionName) != null) {
-            conNameSuffix++;
-            finalConnectionName = connectionName + " " + conNameSuffix;
-        }
-        dsContainer.setName(finalConnectionName);
+        dsContainer.setName(DataSourceUtils.generateUniqueDataSourceName(registry, connectionName, 1));
         dsContainer.setTemporary(true);
         DBPDataSourceFolder folder = registry.getFolder(FILE_DATABASES_FOLDER);
         dsContainer.setFolder(folder);
@@ -244,5 +227,62 @@ public class DBFUtils {
             Files.copy(from, to, StandardCopyOption.REPLACE_EXISTING);
             Files.delete(from);
         }
+    }
+
+    @Nullable
+    public static Path getPathFromURI(@NotNull String fileUriString) throws DBException {
+        if (IOUtils.isLocalFile(fileUriString)) {
+            return Path.of(fileUriString).toAbsolutePath();
+        }
+
+        URI fileUri = URI.create(fileUriString);
+        if (!fileUri.isAbsolute() || fileUri.getScheme() == null) {
+            return Path.of(fileUriString).toAbsolutePath();
+        }
+        FileSystem defaultFs = FileSystems.getDefault();
+        if (defaultFs.provider().getScheme().equals(fileUri.getScheme())) {
+            // default filesystem
+            return defaultFs.provider().getPath(fileUri);
+        } else {
+            var externalFsProvider =
+                FileSystemProviderRegistry.getInstance().getFileSystemProviderBySchema(fileUri.getScheme());
+            if (externalFsProvider == null) {
+                log.error("File system not found for scheme: " + fileUri.getScheme());
+                return null;
+            }
+
+            DBFFileSystemProvider fileSystemProvider = externalFsProvider.getInstance();
+            // Use provider's classloader because filesystem registered there as service
+            ClassLoader fsClassloader = fileSystemProvider.getClass().getClassLoader();
+            Map<String, ?> env = fileSystemProvider.prepareEnv(System.getenv());
+            try {
+                FileSystem externalFileSystem;
+                if (externalFileSystemBySchema.containsKey(fileUri.getScheme())) {
+                    externalFileSystem = externalFileSystemBySchema.get(fileUri.getScheme());
+                } else {
+                    externalFileSystem = FileSystems.newFileSystem(
+                        fileUri,
+                        env,
+                        fsClassloader
+                    );
+                    externalFileSystemBySchema.put(fileUri.getScheme(), externalFileSystem);
+                }
+                Path path = externalFileSystem.provider().getPath(fileUri);
+                return path;
+            } catch (Exception e) {
+                log.error("Failed to initialize path: " + fileUri, e);
+            }
+        }
+        return null;
+    }
+
+    @NotNull
+    public static SMSessionContext getSessionContext(@NotNull DBFFileSystemContainer fsContainer) throws DBException {
+        if (fsContainer instanceof DBPProject project) {
+            return project.getSessionContext();
+        } else if (fsContainer instanceof DBPWorkspace workspace) {
+            return workspace.getAuthContext();
+        }
+        throw new DBException("File system container '" + fsContainer + "' doesn't support session context");
     }
 }

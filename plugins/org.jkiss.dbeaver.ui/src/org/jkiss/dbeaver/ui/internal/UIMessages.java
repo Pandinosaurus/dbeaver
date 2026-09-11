@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2025 DBeaver Corp and others
+ * Copyright (C) 2010-2026 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
  */
 package org.jkiss.dbeaver.ui.internal;
 
-import org.jkiss.dbeaver.utils.NLS;
+import org.eclipse.osgi.util.NLS;
 
 public class UIMessages extends NLS {
     static final String BUNDLE_NAME = "org.jkiss.dbeaver.ui.internal.UIMessages"; //$NON-NLS-1$
@@ -81,7 +81,6 @@ public class UIMessages extends NLS {
     public static String ui_properties_value;
     
     public static String save_execution_plan;
-    public static String load_execution_plan;
 
     public static String control_label_connection_folder;
 
@@ -124,8 +123,13 @@ public class UIMessages extends NLS {
     public static String label_choose;
     public static String dialog_policy_data_export_msg;
     public static String dialog_policy_data_export_title;
+    public static String dialog_policy_data_import_msg;
+    public static String dialog_policy_data_import_title;
     public static String dialog_policy_data_copy_title;
     public static String dialog_policy_data_copy_msg;
+    public static String dialog_policy_data_edit_msg;
+    public static String dialog_policy_sql_execution_title;
+    public static String dialog_policy_sql_execution_msg;
 
     public static String popup_open_browser_open_external_browser;
 
@@ -133,6 +137,16 @@ public class UIMessages extends NLS {
     public static String dialog_auth_code_browser_label;
     public static String dialog_auth_code_code_label;
     public static String dialog_auth_code_copy_and_open_label;
+    public static String dialog_auth_code_copy_link_label;
+    public static String dialog_oauth_browser_message;
+    public static String dialog_oauth_browser_open_label;
+
+    public static String dialog_confirm_action_query;
+    public static String dialog_confirm_action_show_query;
+
+    public static String holiday_decorations_disable_label;
+    public static String holiday_decorations_disabled_message;
+    public static String holiday_decorations_disabled_title;
 
     static {
         // initialize resource bundle

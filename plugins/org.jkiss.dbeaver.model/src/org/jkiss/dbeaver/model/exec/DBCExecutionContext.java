@@ -50,6 +50,7 @@ public interface DBCExecutionContext extends DBPObject, DBPCloseableObject, DBPC
     @NotNull
     DBPDataSource getDataSource();
 
+    @NotNull
     DBSInstance getOwnerInstance();
 
     /**
@@ -117,4 +118,8 @@ public interface DBCExecutionContext extends DBPObject, DBPCloseableObject, DBPC
      */
     @Nullable
     DBCExecutionContextDefaults getContextDefaults();
+
+    default boolean isQMLoggingEnabled() {
+        return true;
+    }
 }

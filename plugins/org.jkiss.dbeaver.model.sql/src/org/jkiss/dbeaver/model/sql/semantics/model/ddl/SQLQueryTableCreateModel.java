@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2025 DBeaver Corp and others
+ * Copyright (C) 2010-2026 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -74,23 +74,39 @@ public class SQLQueryTableCreateModel extends SQLQueryModelContent {
 
     @Override
     public void resolveObjectAndRowsReferences(@NotNull SQLQueryRowsSourceContext context, @NotNull SQLQueryRecognitionContext statistics) {
-        if (this.tableName != null && this.tableName.isNotClassified()) {
-            List<DBSEntity> realTables = context.getConnectionInfo().findRealTables(statistics.getMonitor(), this.tableName.stringParts);
-            DBSEntity realTable = realTables.size() == 1 ? realTables.getFirst() : null;
+        if (this.tableName != null && this.tableName.isNotClassified() && !this.tableName.parts.isEmpty()) {
 
             SQLQuerySymbolOrigin nameOrigin = new SQLQuerySymbolOrigin.DbObjectRef(context, RelationalObjectType.TYPE_TABLE);
-            if (realTable != null) {
-                SQLQuerySemanticUtils.setNamePartsDefinition(this.tableName, realTable, nameOrigin);
-            } else {
+            if (this.tableName.invalidPartsCount > 0) {
                 SQLQuerySemanticUtils.performPartialResolution(
                     context,
                     statistics,
                     this.tableName,
                     nameOrigin,
-                    Set.of(RelationalObjectType.TYPE_UNKNOWN),
-                    SQLQuerySymbolClass.TABLE
+                    SQLQuerySymbolOrigin.DbObjectFilterMode.TABLE,
+                    SQLQuerySymbolClass.ERROR
                 );
+                statistics.appendError(this.getSyntaxNode(), "Invalid table name");
+            } else {
+                List<DBSEntity> realTables = context.getConnectionInfo().findRealTables(statistics.getMonitor(), this.tableName.stringParts);
+                DBSEntity realTable = realTables.size() == 1 ? realTables.getFirst() : null;
+
+                if (realTable != null) {
+                    SQLQuerySemanticUtils.setNamePartsDefinition(
+                        context, this.tableName, realTable, nameOrigin, SQLQuerySymbolOrigin.DbObjectFilterMode.TABLE
+                    );
+                } else {
+                    SQLQuerySemanticUtils.performPartialResolution(
+                        context,
+                        statistics,
+                        this.tableName,
+                        nameOrigin,
+                        SQLQuerySymbolOrigin.DbObjectFilterMode.TABLE,
+                        SQLQuerySymbolClass.TABLE
+                    );
+                }
             }
+
 
             SQLQueryRowsTableValueModel virtualTableRows = new SQLQueryRowsTableValueModel(this.getSyntaxNode(), Collections.emptyList(), false);
 
@@ -116,18 +132,24 @@ public class SQLQueryTableCreateModel extends SQLQueryModelContent {
             SQLQueryRowsDataContext tableContext = context.makeTuple(null, columns, Collections.emptyList());
 
             for (SQLQueryColumnSpec columnSpec : this.columns) {
-                columnSpec.resolveRelations(context, tableContext, statistics);
+                if (!columnSpec.tryResolveRelations(context, tableContext, statistics)) {
+                    return;
+                }
             }
 
             for (SQLQueryTableConstraintSpec constraintSpec : this.constraints) {
-                constraintSpec.resolveRelations(context, tableContext, statistics);
+                if (!constraintSpec.tryResolveRelations(context, tableContext, statistics)) {
+                    return;
+                }
             }
+
         }
 
     }
 
     @Override
-    public void resolveValueRelations(@NotNull SQLQueryRowsDataContext context, @NotNull SQLQueryRecognitionContext statistics) {
+    public boolean tryResolveValueRelations(@NotNull SQLQueryRowsDataContext context, @NotNull SQLQueryRecognitionContext statistics) {
+        return true;
     }
 
     @Override

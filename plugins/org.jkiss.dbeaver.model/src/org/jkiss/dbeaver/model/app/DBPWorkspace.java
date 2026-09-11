@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2025 DBeaver Corp and others
+ * Copyright (C) 2010-2026 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,12 +19,14 @@ package org.jkiss.dbeaver.model.app;
 
 import org.jkiss.code.NotNull;
 import org.jkiss.code.Nullable;
+import org.jkiss.dbeaver.DBException;
 import org.jkiss.dbeaver.model.DBPAdaptable;
 import org.jkiss.dbeaver.model.DBPImage;
 import org.jkiss.dbeaver.model.access.DBAPermissionRealm;
 import org.jkiss.dbeaver.model.auth.SMAuthSpace;
 import org.jkiss.dbeaver.model.auth.SMSession;
 import org.jkiss.dbeaver.model.auth.SMSessionContext;
+import org.jkiss.dbeaver.model.fs.DBFFileSystemContainer;
 import org.jkiss.dbeaver.model.rm.RMConstants;
 
 import java.nio.file.Path;
@@ -35,7 +37,7 @@ import java.util.List;
  * *
  * Operates with projects, resources and user session.
  */
-public interface DBPWorkspace extends SMAuthSpace, DBAPermissionRealm {
+public interface DBPWorkspace extends DBFFileSystemContainer, SMAuthSpace, DBAPermissionRealm {
     String METADATA_FOLDER = ".metadata";
 
     @NotNull
@@ -75,7 +77,7 @@ public interface DBPWorkspace extends SMAuthSpace, DBAPermissionRealm {
      * Initializes workspace state.
      * Called once during workspace instantiation. Mustn't be called directly by user.
      */
-    void initializeProjects();
+    void initializeProjects() throws DBException;
 
     /**
      * Disposes workspace caches.
@@ -96,6 +98,14 @@ public interface DBPWorkspace extends SMAuthSpace, DBAPermissionRealm {
         return true;
     }
 
+    @Nullable
     DBPImage getResourceIcon(DBPAdaptable resourceAdapter);
+
+    @NotNull
+    DBPProject createProject(@NotNull String name, @Nullable String description) throws DBException;
+
+    void deleteProject(@NotNull DBPProject project) throws DBException;
+
+    void renameProject(@NotNull DBPProject project, @NotNull String newName) throws DBException;
 
 }

@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2025 DBeaver Corp and others
+ * Copyright (C) 2010-2026 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,23 +22,18 @@ import org.eclipse.e4.ui.model.application.ui.basic.MPart;
 import org.eclipse.e4.ui.workbench.renderers.swt.CTabRendering;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.CTabFolder;
-import org.eclipse.swt.custom.CTabFolderRenderer;
 import org.eclipse.swt.custom.CTabItem;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.Rectangle;
-import org.eclipse.ui.*;
-import org.eclipse.ui.internal.e4.compatibility.CompatibilityEditor;
+import org.eclipse.swt.widgets.Control;
 import org.jkiss.code.NotNull;
 import org.jkiss.code.Nullable;
 import org.jkiss.dbeaver.Log;
 import org.jkiss.dbeaver.model.DBPDataSourceContainer;
-import org.jkiss.dbeaver.model.DBPDataSourceContainerProvider;
 import org.jkiss.dbeaver.ui.UIStyles;
 import org.jkiss.dbeaver.ui.UIUtils;
-import org.jkiss.dbeaver.ui.editors.EditorUtils;
-import org.jkiss.dbeaver.utils.RuntimeUtils;
 
 import java.lang.reflect.Field;
 
@@ -47,20 +42,20 @@ public final class DBeaverCTabFolderRenderer extends CTabRendering implements IC
 
     private static final Rectangle EMPTY_CLOSE_RECT = new Rectangle(0, 0, 0, 0);
 
+    private static final FieldReflection<CTabRendering, Color> tabOutlineColorField;
     private static final FieldReflection<CTabRendering, Color> selectedTabHighlightColorField;
+    private static final FieldReflection<CTabRendering, Color[]> selectedTabFillColorsField;
     private static final FieldReflection<CTabRendering, Color> hotUnselectedTabsColorBackgroundField;
     private static final FieldReflection<CTabItem, Integer> closeImageStateField;
     private static final FieldReflection<CTabItem, Rectangle> closeRectField;
-    private static final FieldReflection<CTabFolderRenderer, Integer> curveWidth;
-    private static final FieldReflection<CTabFolderRenderer, Integer> curveIndent;
 
     static {
+        tabOutlineColorField = FieldReflection.of(CTabRendering.class, "tabOutlineColor");
         selectedTabHighlightColorField = FieldReflection.of(CTabRendering.class, "selectedTabHighlightColor");
+        selectedTabFillColorsField = FieldReflection.of(CTabRendering.class, "selectedTabFillColors");
         hotUnselectedTabsColorBackgroundField = FieldReflection.of(CTabRendering.class, "hotUnselectedTabsColorBackground");
         closeImageStateField = FieldReflection.of(CTabItem.class, "closeImageState");
         closeRectField = FieldReflection.of(CTabItem.class, "closeRect");
-        curveWidth = FieldReflection.of(CTabFolderRenderer.class, "curveWidth");
-        curveIndent = FieldReflection.of(CTabFolderRenderer.class, "curveIndent");
     }
 
     public DBeaverCTabFolderRenderer(@NotNull CTabFolder parent) {
@@ -74,27 +69,65 @@ public final class DBeaverCTabFolderRenderer extends CTabRendering implements IC
             Color color = getConnectionColor(item);
 
             if (color != null) {
+                var oldTabOutlineColor = tabOutlineColorField.get(this);
                 var oldHotUnselectedTabsColorBackground = hotUnselectedTabsColorBackgroundField.get(this);
                 var oldSelectedTabHighlightColor = selectedTabHighlightColorField.get(this);
+                var oldSelectedTabFillColors = selectedTabFillColorsField.get(this);
                 var oldCloseRect = closeRectField.get(item);
                 var oldCloseImageState = closeImageStateField.get(item);
+                Color highlightColor = null;
+                Color unselectedColor = null;
+                Color hotColor = null;
 
-                // Removes the background behind the close button
-                if (oldCloseImageState != null && oldCloseImageState == SWT.BACKGROUND) {
-                    closeRectField.set(item, EMPTY_CLOSE_RECT);
+                try {
+                    // Removes the background behind the close button
+                    if (oldCloseImageState != null && oldCloseImageState == SWT.BACKGROUND) {
+                        closeRectField.set(item, EMPTY_CLOSE_RECT);
+                    }
+
+                    // Replaces unselected and selected tab colors
+                    boolean isHot = (state & SWT.HOT) != 0;
+                    boolean isSelected = (state & SWT.SELECTED) != 0;
+                    boolean isDarkTheme = UIStyles.isDarkTheme();
+
+                    Color fillColor = oldSelectedTabFillColors != null && oldSelectedTabFillColors.length == 1
+                        ? oldSelectedTabFillColors[0]
+                        : parent.getSelectionBackground();
+                    highlightColor = isDarkTheme ? UIStyles.lighten(color, 0.2f) : UIStyles.darken(color, 0.2f);
+                    unselectedColor = UIStyles.mix(highlightColor, fillColor, 0.15f); ///0.5?
+                    hotColor = isDarkTheme
+                        ? UIStyles.darken(unselectedColor, 0.05f)
+                        : UIStyles.lighten(unselectedColor, 0.05f);
+
+                    hotUnselectedTabsColorBackgroundField.set(this, isHot ? hotColor : unselectedColor);
+                    selectedTabFillColorsField.set(this, new Color[]{color});
+                    selectedTabHighlightColorField.set(this, highlightColor);
+
+                    if (!isSelected) {
+                        // The outline bleeds over the hover tab. Since we're relying on SWT.HOT painting
+                        // logic, we need to override it to be the same color as the tab itself
+                        tabOutlineColorField.set(this, isHot ? hotColor : unselectedColor);
+                    }
+
+                    super.draw(part, state | SWT.HOT, bounds, gc);
+                } finally {
+                    // Restore whatever we have changed back to original values
+                    closeRectField.set(item, oldCloseRect);
+                    selectedTabHighlightColorField.set(this, oldSelectedTabHighlightColor);
+                    selectedTabFillColorsField.set(this, oldSelectedTabFillColors);
+                    hotUnselectedTabsColorBackgroundField.set(this, oldHotUnselectedTabsColorBackground);
+                    tabOutlineColorField.set(this, oldTabOutlineColor);
+
+                    if (hotColor != null) {
+                        hotColor.dispose();
+                    }
+                    if (unselectedColor != null && unselectedColor != highlightColor) {
+                        unselectedColor.dispose();
+                    }
+                    if (highlightColor != null) {
+                        highlightColor.dispose();
+                    }
                 }
-
-                // Replaces unselected and selected tab colors
-                boolean paintingHotTab = (state & SWT.HOT) != 0;
-                hotUnselectedTabsColorBackgroundField.set(this, paintingHotTab ? UIStyles.lighten(color, 0.1f) : color);
-                selectedTabHighlightColorField.set(this, color);
-
-                super.draw(part, state | SWT.HOT, bounds, gc);
-
-                // Restore whatever we have changed back to original values
-                closeRectField.set(item, oldCloseRect);
-                selectedTabHighlightColorField.set(this, oldSelectedTabHighlightColor);
-                hotUnselectedTabsColorBackgroundField.set(this, oldHotUnselectedTabsColorBackground);
 
                 return;
             }
@@ -105,83 +138,38 @@ public final class DBeaverCTabFolderRenderer extends CTabRendering implements IC
 
     @Override
     protected Rectangle computeTrim(int part, int state, int x, int y, int width, int height) {
-        try {
-            return super.computeTrim(part, state, x, y, width, height);
-        } finally {
-            resetCurves();
-        }
+        return super.computeTrim(part, state, x, y, width, height);
     }
 
     @Override
     protected Point computeSize(int part, int state, GC gc, int wHint, int hHint) {
-        try {
-            return super.computeSize(part, state, gc, wHint, hHint);
-        } finally {
-            resetCurves();
-        }
-    }
-
-    private void resetCurves() {
-        if (RuntimeUtils.isLinux()) {
-            // Tab rendering is broken on Linux when a different renderer other than org.eclipse.e4.ui.workbench.renderers.swt.CTabRendering is used:
-            // https://github.com/eclipse-platform/eclipse.platform.swt/blob/1a1f0c22b89d8c99ff9ad58c2bbcf82147852e5a/bundles/org.eclipse.swt/Eclipse%20SWT%20Custom%20Widgets/common/org/eclipse/swt/custom/CTabFolderRenderer.java#L1795-L1796
-            // The issue can be fixed by resetting these fields:
-            curveWidth.set(this, 0);
-            curveIndent.set(this, 0);
-        }
+        return super.computeSize(part, state, gc, wHint, hHint);
     }
 
     @Nullable
     private static Color getConnectionColor(@NotNull CTabItem item) {
-        if (!(item.getData(AbstractPartRenderer.OWNING_ME) instanceof MPart part)) {
-            return null;
+        if (item.getData(AbstractPartRenderer.OWNING_ME) instanceof MPart part) {
+            return getConnectionColor(item, part);
         }
-
-        return getConnectionColor(part);
-    }
-
-    @Nullable
-    private static Color getConnectionColor(@NotNull MPart part) {
-        if (part.getObject() instanceof CompatibilityEditor editor) {
-            return getConnectionColor(editor.getEditor());
-        }
-
-        // See org.eclipse.ui.internal.WorkbenchPartReference.WorkbenchPartReference
-        if (part.getTransientData().get(IWorkbenchPartReference.class.getName()) instanceof IEditorReference ref) {
-            IEditorPart editor = ref.getEditor(false);
-            if (editor != null) {
-                return getConnectionColor(editor);
-            }
-
-            try {
-                return getConnectionColor(ref.getEditorInput());
-            } catch (PartInitException e) {
-                log.debug("Cannot get editor input for part: " + part.getElementId(), e);
+        for (Control control = item.getParent(); control != null; control = control.getParent()) {
+            if (control.getData(AbstractPartRenderer.OWNING_ME) instanceof MPart part) {
+                return getConnectionColor(item, part);
             }
         }
-
         return null;
     }
 
     @Nullable
-    private static Color getConnectionColor(@NotNull IEditorPart editorPart) {
-        if (editorPart instanceof DBPDataSourceContainerProvider provider) {
-            DBPDataSourceContainer container = provider.getDataSourceContainer();
-            if (container != null) {
-                return UIUtils.getConnectionColor(container.getConnectionConfiguration());
-            }
-        }
-
-        return getConnectionColor(editorPart.getEditorInput());
-    }
-
-    @Nullable
-    private static Color getConnectionColor(@NotNull IEditorInput editorInput) {
-        DBPDataSourceContainer container = EditorUtils.getInputDataSource(editorInput, false);
+    private static Color getConnectionColor(@NotNull CTabItem item, @NotNull MPart part) {
+        DBPDataSourceContainer container = DBeaverEditorPartUtils.getDataSourceContainer(
+            part, () -> {
+                if (!item.isDisposed()) {
+                    item.getParent().redraw();
+                }
+            });
         if (container != null) {
             return UIUtils.getConnectionColor(container.getConnectionConfiguration());
         }
-
         return null;
     }
 

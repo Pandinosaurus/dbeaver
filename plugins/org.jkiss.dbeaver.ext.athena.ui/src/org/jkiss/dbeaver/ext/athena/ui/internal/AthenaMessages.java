@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2024 DBeaver Corp and others
+ * Copyright (C) 2010-2026 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
  */
 package org.jkiss.dbeaver.ext.athena.ui.internal;
 
-import org.jkiss.dbeaver.utils.NLS;
+import org.eclipse.osgi.util.NLS;
 
 public class AthenaMessages extends NLS {
 	static final String BUNDLE_NAME = "org.jkiss.dbeaver.ext.athena.ui.internal.AthenaMessages"; //$NON-NLS-1$
@@ -28,15 +28,10 @@ public class AthenaMessages extends NLS {
 
 	public static String label_region;
 	public static String label_connection;
-	public static String label_aws_access_key;
 
 	private AthenaMessages() {
 	}
-
-	public static String label_access_key;
-	public static String label_access_key_id;
 	public static String label_s3_location;
 	public static String label_s3_output_location;
-	public static String label_secret_key;
 	public static String label_security;
 }

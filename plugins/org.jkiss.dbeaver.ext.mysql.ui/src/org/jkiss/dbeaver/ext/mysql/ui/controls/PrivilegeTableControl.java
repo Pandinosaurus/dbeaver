@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2024 DBeaver Corp and others
+ * Copyright (C) 2010-2026 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,8 +18,7 @@ package org.jkiss.dbeaver.ext.mysql.ui.controls;
 
 import org.eclipse.jface.viewers.*;
 import org.eclipse.swt.SWT;
-import org.eclipse.swt.events.SelectionAdapter;
-import org.eclipse.swt.events.SelectionEvent;
+import org.eclipse.swt.events.SelectionListener;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Composite;
@@ -46,11 +45,11 @@ import java.util.List;
  */
 public class PrivilegeTableControl extends Composite {
 
-    private boolean isStatic;
+    private final boolean isStatic;
 
-    private TableViewer tableViewer;
-    private ViewerColumnController<Object, Object> columnsController;
-    private Table privTable;
+    private final TableViewer tableViewer;
+    private final ViewerColumnController<Object, Object> columnsController;
+    private final Table privTable;
 
     private List<MySQLPrivilege> privileges;
     private List<MySQLObjectPrivilege> currentPrivileges = new ArrayList<>();
@@ -66,16 +65,14 @@ public class PrivilegeTableControl extends Composite {
         gl.horizontalSpacing = 0;
         setLayout(gl);
 
-        Composite privsGroup = UIUtils.createControlGroup(this, title, 1, GridData.FILL_BOTH, 0);
-        GridData gd = (GridData) privsGroup.getLayoutData();
-        gd.horizontalSpan = 2;
+        Composite privsGroup = UIUtils.createTitledComposite(this, title, 1, GridData.FILL_BOTH, 0, 2);
 
         tableViewer = new TableViewer(privsGroup, SWT.BORDER | SWT.UNDERLINE_SINGLE | SWT.V_SCROLL | SWT.H_SCROLL | SWT.FULL_SELECTION);
 
         privTable = tableViewer.getTable();
         privTable.setHeaderVisible(true);
         privTable.setLinesVisible(true);
-        gd = new GridData(GridData.FILL_BOTH);
+        GridData gd = new GridData(GridData.FILL_BOTH);
         gd.minimumWidth = 300;
         privTable.setLayoutData(gd);
 
@@ -117,8 +114,7 @@ public class PrivilegeTableControl extends Composite {
 
             @Override
             protected void setValue(Object element, Object value) {
-                if (element instanceof MySQLObjectPrivilege) {
-                    MySQLObjectPrivilege elementPriv = (MySQLObjectPrivilege) element;
+                if (element instanceof MySQLObjectPrivilege elementPriv) {
                     if (elementPriv.enabled != Boolean.TRUE.equals(value)) { // handle double click on the box cell
                         elementPriv.enabled = Boolean.TRUE.equals(value);
                         boolean withGrantOption = false;
@@ -148,10 +144,7 @@ public class PrivilegeTableControl extends Composite {
         Composite buttonsPanel = UIUtils.createComposite(privsGroup, 3);
         buttonsPanel.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
 
-        UIUtils.createPushButton(buttonsPanel, MySQLUIMessages.controls_privilege_table_push_button_check_all, null, new SelectionAdapter() {
-            @Override
-            public void widgetSelected(SelectionEvent e)
-            {
+        UIUtils.createPushButton(buttonsPanel, MySQLUIMessages.controls_privilege_table_push_button_check_all, null, SelectionListener.widgetSelectedAdapter(e -> {
                 for (MySQLObjectPrivilege userPrivilege : CommonUtils.safeCollection(currentPrivileges)) {
                     if (!userPrivilege.enabled) {
                         userPrivilege.enabled = true;
@@ -159,12 +152,8 @@ public class PrivilegeTableControl extends Composite {
                     }
                 }
                 drawColumns(currentPrivileges);
-            }
-        });
-        UIUtils.createPushButton(buttonsPanel, MySQLUIMessages.controls_privilege_table_push_button_clear_all, null, new SelectionAdapter() {
-            @Override
-            public void widgetSelected(SelectionEvent e)
-            {
+            }));
+        UIUtils.createPushButton(buttonsPanel, MySQLUIMessages.controls_privilege_table_push_button_clear_all, null, SelectionListener.widgetSelectedAdapter(e -> {
                 for (MySQLObjectPrivilege userPrivilege : CommonUtils.safeCollection(currentPrivileges)) {
                     if (userPrivilege.enabled) {
                         userPrivilege.enabled = false;
@@ -172,8 +161,7 @@ public class PrivilegeTableControl extends Composite {
                     }
                 }
                 drawColumns(currentPrivileges);
-            }
-        });
+            }));
     }
 
     private void notifyPrivilegeCheck(MySQLPrivilege privilege, boolean checked, boolean withGrantOption) {
@@ -197,7 +185,7 @@ public class PrivilegeTableControl extends Composite {
             // Add "With Grant Option" manually. We will use this option to expand grant statements on the "WITH GRANT STATEMENT" string
             MySQLDataSource dataSource = null;
             if (!CommonUtils.isEmpty(privileges)) {
-                dataSource = (MySQLDataSource) privileges.get(0).getDataSource();
+                dataSource = (MySQLDataSource) privileges.getFirst().getDataSource();
             }
             privileges.add(new MySQLPrivilege(
                 dataSource,
@@ -276,9 +264,9 @@ public class PrivilegeTableControl extends Composite {
         drawColumns(currentPrivileges);
     }
 
-    private class MySQLObjectPrivilege {
+    private static class MySQLObjectPrivilege {
 
-        private MySQLPrivilege privilege;
+        private final MySQLPrivilege privilege;
         private boolean enabled;
 
         MySQLObjectPrivilege(MySQLPrivilege privilege, boolean enabled) {

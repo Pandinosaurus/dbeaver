@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2024 DBeaver Corp and others
+ * Copyright (C) 2010-2026 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,23 +20,28 @@ import org.eclipse.jface.dialogs.IDialogPage;
 import org.eclipse.jface.resource.ImageDescriptor;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.ModifyListener;
-import org.eclipse.swt.events.SelectionAdapter;
-import org.eclipse.swt.events.SelectionEvent;
+import org.eclipse.swt.events.SelectionListener;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Combo;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Link;
 import org.eclipse.swt.widgets.Text;
+import org.eclipse.ui.plugin.AbstractUIPlugin;
 import org.jkiss.code.NotNull;
+import org.jkiss.code.Nullable;
+import org.jkiss.dbeaver.DBException;
 import org.jkiss.dbeaver.Log;
 import org.jkiss.dbeaver.ext.snowflake.SnowflakeConstants;
+import org.jkiss.dbeaver.ext.snowflake.SnowflakeUtils;
 import org.jkiss.dbeaver.ext.snowflake.model.auth.SnowflakeAuthModelSnowflake;
 import org.jkiss.dbeaver.ext.snowflake.ui.internal.SnowflakeMessages;
-import org.jkiss.dbeaver.ext.snowflake.ui.internal.SnowflakeUIActivator;
 import org.jkiss.dbeaver.model.DBPDataSourceContainer;
 import org.jkiss.dbeaver.model.connection.DBPConnectionConfiguration;
-import org.jkiss.dbeaver.model.exec.*;
+import org.jkiss.dbeaver.model.exec.DBCResultSet;
+import org.jkiss.dbeaver.model.exec.DBCSession;
+import org.jkiss.dbeaver.model.exec.DBCStatement;
+import org.jkiss.dbeaver.model.exec.DBCStatementType;
 import org.jkiss.dbeaver.ui.IDataSourceConnectionTester;
 import org.jkiss.dbeaver.ui.IDialogPageProvider;
 import org.jkiss.dbeaver.ui.UIUtils;
@@ -61,7 +66,8 @@ public class SnowflakeConnectionPage extends ConnectionPageWithAuth implements I
     private Combo warehouseText;
     private Combo schemaText;
 
-    private static ImageDescriptor logoImage = SnowflakeUIActivator.getImageDescriptor("icons/snowflake_logo.png"); //$NON-NLS-1$
+    private static final ImageDescriptor logoImage = AbstractUIPlugin.imageDescriptorFromPlugin(
+        SnowflakeUIConstants.PLUGIN_ID, "icons/snowflake_logo.png"); //$NON-NLS-1$
 
     @Override
     public void dispose()
@@ -80,7 +86,12 @@ public class SnowflakeConnectionPage extends ConnectionPageWithAuth implements I
         ModifyListener textListener = e -> site.updateButtons();
 
         {
-            Composite addrGroup = UIUtils.createControlGroup(control, SnowflakeMessages.label_connection, 4, 0, 0);
+            Composite addrGroup = UIUtils.createTitledComposite(
+                control,
+                SnowflakeMessages.label_connection,
+                4,
+                GridData.FILL_HORIZONTAL
+            );
             GridData gd = new GridData(GridData.FILL_HORIZONTAL);
             addrGroup.setLayoutData(gd);
 
@@ -90,6 +101,7 @@ public class SnowflakeConnectionPage extends ConnectionPageWithAuth implements I
             gd = new GridData(GridData.FILL_HORIZONTAL);
             gd.grabExcessHorizontalSpace = true;
             hostText.setLayoutData(gd);
+            UIUtils.setDefaultTextControlWidthHint(hostText);
             hostText.addModifyListener(textListener);
 
             UIUtils.createControlLabel(addrGroup, SnowflakeMessages.label_port);
@@ -108,6 +120,7 @@ public class SnowflakeConnectionPage extends ConnectionPageWithAuth implements I
             gd.grabExcessHorizontalSpace = true;
             gd.horizontalSpan = 3;
             dbText.setLayoutData(gd);
+            UIUtils.setDefaultTextControlWidthHint(dbText);
             dbText.addModifyListener(textListener);
 
             UIUtils.createControlLabel(addrGroup, SnowflakeMessages.label_warehouse);
@@ -117,6 +130,7 @@ public class SnowflakeConnectionPage extends ConnectionPageWithAuth implements I
             gd.grabExcessHorizontalSpace = true;
             gd.horizontalSpan = 3;
             warehouseText.setLayoutData(gd);
+            UIUtils.setDefaultTextControlWidthHint(warehouseText);
             warehouseText.addModifyListener(textListener);
 
             UIUtils.createControlLabel(addrGroup, SnowflakeMessages.label_schema);
@@ -126,6 +140,7 @@ public class SnowflakeConnectionPage extends ConnectionPageWithAuth implements I
             gd.grabExcessHorizontalSpace = true;
             gd.horizontalSpan = 3;
             schemaText.setLayoutData(gd);
+            UIUtils.setDefaultTextControlWidthHint(schemaText);
             schemaText.addModifyListener(textListener);
         }
 
@@ -137,12 +152,7 @@ public class SnowflakeConnectionPage extends ConnectionPageWithAuth implements I
             GridData gd = new GridData(GridData.FILL_HORIZONTAL | GridData.HORIZONTAL_ALIGN_BEGINNING);
             gd.grabExcessHorizontalSpace = true;
             testLink.setLayoutData(gd);
-            testLink.addSelectionListener(new SelectionAdapter() {
-                @Override
-                public void widgetSelected(SelectionEvent e) {
-                    site.testConnection();
-                }
-            });
+            testLink.addSelectionListener(SelectionListener.widgetSelectedAdapter(e -> site.testConnection()));
         }
 
         createAuthPanel(control, 1);
@@ -189,10 +199,14 @@ public class SnowflakeConnectionPage extends ConnectionPageWithAuth implements I
             dbText.setText(databaseName);
         }
         if (warehouseText != null) {
-            warehouseText.setText(CommonUtils.notEmpty(connectionInfo.getServerName()));
+            warehouseText.setText(CommonUtils.notEmpty(SnowflakeUtils.getWarehouse(connectionInfo)));
         }
         if (schemaText != null) {
-            schemaText.setText(CommonUtils.notEmpty(connectionInfo.getProviderProperty(SnowflakeConstants.PROP_SCHEMA)));
+            String schema = connectionInfo.getProviderProperty(SnowflakeConstants.PROP_SCHEMA);
+            if (CommonUtils.isEmpty(schema)) {
+                schema = connectionInfo.getProviderProperty(SnowflakeConstants.PROP_SCHEMA2);
+            }
+            schemaText.setText(CommonUtils.notEmpty(schema));
         }
     }
 
@@ -203,7 +217,7 @@ public class SnowflakeConnectionPage extends ConnectionPageWithAuth implements I
     }
 
     @Override
-    public void saveSettings(DBPDataSourceContainer dataSource)
+    public void saveSettings(@NotNull DBPDataSourceContainer dataSource)
     {
         DBPConnectionConfiguration connectionInfo = dataSource.getConnectionConfiguration();
         if (hostText != null) {
@@ -236,7 +250,7 @@ public class SnowflakeConnectionPage extends ConnectionPageWithAuth implements I
         }
     }
 
-    private static void loadDictList(DBCSession session, Combo combo, String query) throws DBCException {
+    private static void loadDictList(DBCSession session, Combo combo, String query) throws DBException {
         List<String> result = new ArrayList<>();
         session.getProgressMonitor().subTask("Exec " + query); //$NON-NLS-1$
         try (DBCStatement dbStat = session.prepareStatement(DBCStatementType.QUERY, query, false, false, false)) {
@@ -260,6 +274,7 @@ public class SnowflakeConnectionPage extends ConnectionPageWithAuth implements I
         });
     }
 
+    @Nullable
     @Override
     public IDialogPage[] getDialogPages(boolean extrasOnly, boolean forceCreate)
     {

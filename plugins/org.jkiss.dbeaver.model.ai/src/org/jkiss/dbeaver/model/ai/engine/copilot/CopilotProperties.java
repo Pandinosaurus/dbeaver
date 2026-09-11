@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2025 DBeaver Corp and others
+ * Copyright (C) 2010-2026 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,75 +17,113 @@
 package org.jkiss.dbeaver.model.ai.engine.copilot;
 
 import com.google.gson.annotations.SerializedName;
+import org.jkiss.code.NotNull;
+import org.jkiss.code.Nullable;
 import org.jkiss.dbeaver.DBException;
-import org.jkiss.dbeaver.model.ai.engine.AIEngineProperties;
+import org.jkiss.dbeaver.model.ai.AIConfigurationProfile;
+import org.jkiss.dbeaver.model.ai.engine.AIModel;
+import org.jkiss.dbeaver.model.ai.engine.BaseAIEngineProperties;
 import org.jkiss.dbeaver.model.ai.utils.AIUtils;
+import org.jkiss.dbeaver.model.meta.Property;
 import org.jkiss.dbeaver.model.meta.SecureProperty;
-import org.jkiss.dbeaver.model.secret.DBSSecretController;
 import org.jkiss.utils.CommonUtils;
 
-public class CopilotProperties implements AIEngineProperties {
+public class CopilotProperties extends BaseAIEngineProperties {
+    private static final String COPILOT_ACCESS_TOKEN = "copilot.access.token";
+    private static final String GPT_MODEL = "gpt.model";
+    private static final String GPT_CONTEXT_WINDOW_SIZE = "gpt.contextWindowSize";
+
+    @Nullable
     @SecureProperty
-    @SerializedName("copilot.access.token")
+    @SerializedName(COPILOT_ACCESS_TOKEN)
     private String token;
 
-    @SerializedName("gpt.model")
+    @Nullable
+    @SerializedName(GPT_MODEL)
     private String model;
 
-    @SerializedName("gpt.model.temperature")
-    private double temperature;
+    @Nullable
+    @SerializedName(GPT_CONTEXT_WINDOW_SIZE)
+    private Integer contextWindowSize;
 
-    @SerializedName("gpt.log.query")
-    private boolean loggingEnabled;
-
+    @Nullable
+    @Property(order = 1, password = true, required = true)
     public String getToken() {
         return token;
     }
 
-    public void setToken(String token) {
+    @NotNull
+    public String getBaseAuthUrl() {
+        return CopilotConstants.BASE_AUTH_URL;
+    }
+
+    public void setToken(@Nullable String token) {
         this.token = token;
     }
 
+    @Nullable
+    @Property(order = 2)
     public String getModel() {
         return model;
     }
 
-    public void setModel(String model) {
+    public void setModel(@Nullable String model) {
         this.model = model;
     }
 
+    @Override
+    public void selectModel(@NotNull AIModel model) {
+        setModel(model.name());
+        setContextWindowSize(model.contextWindowSize());
+    }
+
+    @Override
+    @Property(order = 3)
     public double getTemperature() {
-        return temperature;
+        if (Double.isFinite(temperature) && temperature != AIUtils.DEFAULT_TEMPERATURE) {
+            return temperature;
+        }
+        return CopilotModels.getModelByName(model)
+            .map(AIModel::defaultTemperature)
+            .orElse(AIUtils.DEFAULT_TEMPERATURE);
     }
 
-    public void setTemperature(double temperature) {
-        this.temperature = temperature;
+    @Override
+    @Nullable
+    @Property(order = 4, min = 1)
+    public Integer getContextWindowSize() {
+        if (contextWindowSize != null) {
+            return contextWindowSize;
+        }
+
+        return CopilotModels.getModelByName(model)
+            .map(AIModel::contextWindowSize)
+            .orElse(null);
     }
 
-    public boolean isLoggingEnabled() {
-        return loggingEnabled;
-    }
-
-    public void setLoggingEnabled(boolean loggingEnabled) {
-        this.loggingEnabled = loggingEnabled;
+    public void setContextWindowSize(@Nullable Integer contextWindowSize) {
+        this.contextWindowSize = contextWindowSize;
     }
 
     /**
      * Resolve secrets from the secret controller.
      */
-    public void resolveSecrets() throws DBException {
-        token = AIUtils.getSecretValueOrDefault(CopilotConstants.COPILOT_ACCESS_TOKEN, token);
+    public void resolveSecrets(@NotNull AIConfigurationProfile profile) throws DBException {
+        if (token == null) {
+            token = AIUtils.getSecretValueOrDefault(profile, CopilotConstants.COPILOT_ACCESS_TOKEN, token);
+        }
     }
 
     /**
      * Save secrets to the secret controller.
      */
-    public void saveSecrets() throws DBException {
-        if (token != null) {
-            DBSSecretController.getGlobalSecretController().setPrivateSecretValue(
-                CopilotConstants.COPILOT_ACCESS_TOKEN, token
-            );
-        }
+    public void saveSecrets(@NotNull AIConfigurationProfile profile) throws DBException {
+        AIUtils.setSecretValue(profile, CopilotConstants.COPILOT_ACCESS_TOKEN, token);
+    }
+
+    @Override
+    public void deleteSecrets(@NotNull AIConfigurationProfile profile) throws DBException {
+        AIUtils.deleteSecretValue(profile, CopilotConstants.COPILOT_ACCESS_TOKEN);
     }
 
     @Override

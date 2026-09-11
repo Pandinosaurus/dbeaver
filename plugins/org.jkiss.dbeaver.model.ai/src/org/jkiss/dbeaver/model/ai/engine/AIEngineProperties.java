@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2025 DBeaver Corp and others
+ * Copyright (C) 2010-2026 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,16 +16,55 @@
  */
 package org.jkiss.dbeaver.model.ai.engine;
 
+import org.jkiss.code.NotNull;
+import org.jkiss.code.Nullable;
 import org.jkiss.dbeaver.DBException;
+import org.jkiss.dbeaver.model.ai.AIConfigurationProfile;
 
 public interface AIEngineProperties {
+
+    int DEFAULT_TIMEOUT = 30;
+
+    @Nullable
+    String getModel();
+
+    @Nullable
+    default String getModelDisplayName() {
+        return getModel();
+    }
+
+    default boolean isModelSelectionSupported() {
+        return true;
+    }
+
+    default void setModel(@NotNull String model) throws DBException {
+        throw new DBException("This AI engine does not support model selection");
+    }
+
+    default void selectModel(@NotNull AIModel model) throws DBException {
+        setModel(model.name());
+    }
+
+    @Nullable
+    Integer getContextWindowSize();
+
+    double getTemperature();
 
     // Checks that properties have all required values
     boolean isValidConfiguration();
 
     boolean isLoggingEnabled();
 
-    void resolveSecrets() throws DBException;
+    void setLoggingEnabled(boolean loggingEnabled);
 
-    void saveSecrets() throws DBException;
+    int getTimeout();
+
+    void setTimeout(int timeout);
+
+    void resolveSecrets(@NotNull AIConfigurationProfile profile) throws DBException;
+
+    void saveSecrets(@NotNull AIConfigurationProfile profile) throws DBException;
+
+    void deleteSecrets(@NotNull AIConfigurationProfile profile) throws DBException;
+
 }

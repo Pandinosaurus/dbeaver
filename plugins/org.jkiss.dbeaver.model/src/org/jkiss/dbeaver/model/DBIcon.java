@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2025 DBeaver Corp and others
+ * Copyright (C) 2010-2026 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@
 package org.jkiss.dbeaver.model;
 
 import org.eclipse.core.runtime.FileLocator;
+import org.jkiss.code.NotNull;
 import org.jkiss.dbeaver.Log;
 import org.jkiss.dbeaver.utils.GeneralUtils;
 import org.jkiss.utils.CommonUtils;
@@ -52,6 +53,7 @@ public class DBIcon implements DBPImage {
     public static final DBIcon TREE_SCHEMA_SYSTEM = new DBIcon("schema_system", "tree/schema_system.svg"); //$NON-NLS-1$ //$NON-NLS-2$
     public static final DBIcon TREE_SCHEMA_UTIL = new DBIcon("schema_util", "tree/schema_util.svg"); //$NON-NLS-1$ //$NON-NLS-2$
     public static final DBIcon TREE_TABLE = new DBIcon("table", "tree/table.svg"); //$NON-NLS-1$ //$NON-NLS-2$
+    public static final DBIcon TREE_TABLE_ADD = new DBIcon("table_alias", "tree/table_add.svg"); //$NON-NLS-1$ //$NON-NLS-2$
     public static final DBIcon TREE_TABLE_ALIAS = new DBIcon("table_alias", "tree/table_alias.svg"); //$NON-NLS-1$ //$NON-NLS-2$
     public static final DBIcon TREE_TABLE_LINK = new DBIcon("table_link", "tree/table_link.svg"); //$NON-NLS-1$ //$NON-NLS-2$
     public static final DBIcon TREE_TABLE_INDEX = new DBIcon("table_index", "tree/table_index.svg"); //$NON-NLS-1$ //$NON-NLS-2$
@@ -151,27 +153,32 @@ public class DBIcon implements DBPImage {
     public static final DBIcon OVER_REFERENCE = new DBIcon("over_reference", "over/reference_ovr.png"); //$NON-NLS-1$ //$NON-NLS-2$
     public static final DBIcon OVER_FOLDER = new DBIcon("over_folder", "over/folder_ovr.png"); //$NON-NLS-1$ //$NON-NLS-2$
 
-    public static final DBIcon DATABASE_DEFAULT = new DBIcon("database_icon_default", "connection/database_icon.png"); //$NON-NLS-1$ //$NON-NLS-2$
-    public static final DBIcon DATABASE_BIG_DEFAULT = new DBIcon("database_icon_big_default", "connection/database_icon_big.png"); //$NON-NLS-1$ //$NON-NLS-2$
+    public static final DBIcon DATABASE_DEFAULT = new DBIcon("database_icon_default", "connection/database_icon.svg"); //$NON-NLS-1$ //$NON-NLS-2$
+    public static final DBIcon DATABASE_BIG_DEFAULT = new DBIcon("database_icon_big_default", "connection/database_icon_big.svg"); //$NON-NLS-1$ //$NON-NLS-2$
+    public static final DBIcon GLOBAL_PROFILE = new DBIcon("global_profile", "connection/profile/global_profile.svg"); //$NON-NLS-1$ //$NON-NLS-2$
+    public static final DBIcon CONNECTION_PROFILE = new DBIcon("connection_profile", "connection/profile/connection_profile.svg"); //$NON-NLS-1$ //$NON-NLS-2$
 
     public static final DBIcon APACHE = new DBIcon("apache", "misc/apache.png"); //$NON-NLS-1$ //$NON-NLS-2$
     public static final DBIcon JAR = new DBIcon("jar", "misc/jar.svg"); //$NON-NLS-1$ //$NON-NLS-2$
     public static final DBIcon LIBRARY = new DBIcon("library", "misc/library.svg"); //$NON-NLS-1$ //$NON-NLS-2$
 
-    public static final DBIcon STATUS_ERROR = new DBIcon("status_error", "status/error.png"); //$NON-NLS-1$ //$NON-NLS-2$
-    public static final DBIcon STATUS_WARNING = new DBIcon("status_warning", "status/warning.png"); //$NON-NLS-1$ //$NON-NLS-2$
-    public static final DBIcon STATUS_QUESTION = new DBIcon("status_question", "status/question.png"); //$NON-NLS-1$ //$NON-NLS-2$
-    public static final DBIcon STATUS_INFO = new DBIcon("status_info", "status/info.png"); //$NON-NLS-1$ //$NON-NLS-2$
+    public static final DBIcon STATUS_ERROR = new DBIcon("status_error", "status/error.svg"); //$NON-NLS-1$ //$NON-NLS-2$
+    public static final DBIcon STATUS_WARNING = new DBIcon("status_warning", "status/warning.svg"); //$NON-NLS-1$ //$NON-NLS-2$
+    public static final DBIcon STATUS_QUESTION = new DBIcon("status_question", "status/question.svg"); //$NON-NLS-1$ //$NON-NLS-2$
+    public static final DBIcon STATUS_INFO = new DBIcon("status_info", "status/info.svg"); //$NON-NLS-1$ //$NON-NLS-2$
+
+    public static final DBIcon RECREATE = new DBIcon("recreate", "misc/recreate.svg");
+    public static final DBIcon CREATE = new DBIcon("create", "misc/create.svg");
+    public static final DBIcon EXISTING = new DBIcon("existing", "misc/existing.svg");
+    public static final DBIcon MAPPING = new DBIcon("mapping", "misc/mapping.svg");
 
     public static final DBIcon SMALL_ERROR = new DBIcon("small_error", "status/error_small.svg"); //$NON-NLS-1$ //$NON-NLS-2$
-    public static final DBIcon SMALL_WARNING = new DBIcon("small_warning", "status/warning_small.png"); //$NON-NLS-1$ //$NON-NLS-2$
+    public static final DBIcon SMALL_WARNING = new DBIcon("small_warning", "status/warning_small.svg"); //$NON-NLS-1$ //$NON-NLS-2$
     public static final DBIcon SMALL_QUESTION = new DBIcon("small_question", "status/question_small.svg"); //$NON-NLS-1$ //$NON-NLS-2$
     public static final DBIcon SMALL_INFO = new DBIcon("small_info", "status/info_small.png"); //$NON-NLS-1$ //$NON-NLS-2$
 
-    public static final DBIcon AI = new DBIcon("ai", "misc/ai.svg"); //$NON-NLS-1$ //$NON-NLS-2$
-
-    public static final DBIcon TINY_ERROR = new DBIcon("tiny_error", "status/error_tiny.png"); //$NON-NLS-1$ //$NON-NLS-2$
-    public static final DBIcon TINY_WARNING = new DBIcon("tiny_warning", "status/warning_tiny.png"); //$NON-NLS-1$ //$NON-NLS-2$
+    public static final DBIcon TINY_ERROR = new DBIcon("tiny_error", "status/error_tiny.svg"); //$NON-NLS-1$ //$NON-NLS-2$
+    public static final DBIcon TINY_WARNING = new DBIcon("tiny_warning", "status/warning_tiny.svg"); //$NON-NLS-1$ //$NON-NLS-2$
     public static final DBIcon SQL_TEXT = new DBIcon("sql_text", "sql/sql_text.svg");
 
     private static final boolean VALIDATE_ICON_FILE = false;
@@ -251,6 +258,7 @@ public class DBIcon implements DBPImage {
         return token;
     }
 
+    @NotNull
     @Override
     public String getLocation() {
         return path;

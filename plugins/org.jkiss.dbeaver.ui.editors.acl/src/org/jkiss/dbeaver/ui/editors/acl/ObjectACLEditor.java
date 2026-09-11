@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2024 DBeaver Corp and others
+ * Copyright (C) 2010-2026 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,8 +24,7 @@ import org.eclipse.jface.viewers.Viewer;
 import org.eclipse.jface.viewers.ViewerFilter;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.SashForm;
-import org.eclipse.swt.events.SelectionAdapter;
-import org.eclipse.swt.events.SelectionEvent;
+import org.eclipse.swt.events.SelectionListener;
 import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
@@ -113,11 +112,11 @@ public abstract class ObjectACLEditor<PRIVILEGE extends DBAPrivilege, PRIVILEGE_
                         String schemaPrefix = DBUtils.getQuotedIdentifier(object) + ".";
                         for (String tableName : privilegeMap.keySet()) {
                             if (tableName.startsWith(schemaPrefix)) {
-                                return BaseThemeSettings.instance.baseFontBold;
+                                return BaseThemeSettings.instance.treeAndTableFontBold;
                             }
                         }
                     } else if (getObjectPermissions(object) != null) {
-                        return BaseThemeSettings.instance.baseFont;
+                        return BaseThemeSettings.instance.treeAndTableFont;
                     }
                 }
                 return null;
@@ -193,9 +192,7 @@ public abstract class ObjectACLEditor<PRIVILEGE extends DBAPrivilege, PRIVILEGE_
             buttonPanel.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
             buttonPanel.setLayout(new RowLayout());
 
-            UIUtils.createPushButton(buttonPanel, "Grant All", null, new SelectionAdapter() {
-                @Override
-                public void widgetSelected(SelectionEvent e) {
+            UIUtils.createPushButton(buttonPanel, "Grant All", null, SelectionListener.widgetSelectedAdapter(e -> {
 /*
                     boolean hadNonChecked = false;
                     for (TableItem item : permissionTable.getItems()) {
@@ -204,11 +201,8 @@ public abstract class ObjectACLEditor<PRIVILEGE extends DBAPrivilege, PRIVILEGE_
                     }
                     if (hadNonChecked) updateCurrentPrivileges(true, null);
 */
-                }
-            });
-            UIUtils.createPushButton(buttonPanel, "Revoke All", null, new SelectionAdapter() {
-                @Override
-                public void widgetSelected(SelectionEvent e) {
+                }));
+            UIUtils.createPushButton(buttonPanel, "Revoke All", null, SelectionListener.widgetSelectedAdapter(e -> {
 /*
                     boolean hadChecked = false;
                     for (TableItem item : permissionTable.getItems()) {
@@ -219,8 +213,7 @@ public abstract class ObjectACLEditor<PRIVILEGE extends DBAPrivilege, PRIVILEGE_
                         updateCurrentPrivileges(false, null);
                     }
 */
-                }
-            });
+                }));
 
             objectDescriptionText = new Text(permEditPanel, SWT.READ_ONLY | SWT.MULTI | SWT.WRAP | SWT.V_SCROLL);
             objectDescriptionText.setLayoutData(new GridData(GridData.FILL_BOTH));
@@ -288,11 +281,11 @@ public abstract class ObjectACLEditor<PRIVILEGE extends DBAPrivilege, PRIVILEGE_
                     privilegeType == null ? null : new DBAPrivilegeType[] { privilegeType }),
                 new DBECommandReflector<DBAPrivilegeOwner, ACLCommandChangePrivilege>() {
                     @Override
-                    public void redoCommand(ACLCommandChangePrivilege cmd)
+                    public void redoCommand(@NotNull ACLCommandChangePrivilege cmd)
                     {
                     }
                     @Override
-                    public void undoCommand(ACLCommandChangePrivilege cmd)
+                    public void undoCommand(@NotNull ACLCommandChangePrivilege cmd)
                     {
                     }
                 });
@@ -412,7 +405,7 @@ public abstract class ObjectACLEditor<PRIVILEGE extends DBAPrivilege, PRIVILEGE_
         LoadingJob.createService(
             new DatabaseLoadService<>("Load permissions", getExecutionContext()) {
                 @Override
-                public Collection<? extends DBAPrivilege> evaluate(DBRProgressMonitor monitor) throws InvocationTargetException {
+                public Collection<? extends DBAPrivilege> evaluate(@NotNull DBRProgressMonitor monitor) throws InvocationTargetException {
                     monitor.beginTask("Load privileges from database..", 1);
                     try {
                         monitor.subTask("Load " + getDatabaseObject().getName() + " privileges");
@@ -480,7 +473,7 @@ public abstract class ObjectACLEditor<PRIVILEGE extends DBAPrivilege, PRIVILEGE_
         ProgressVisualizer<Collection<? extends DBAPrivilege>> createLoadVisualizer() {
             return new ProgressVisualizer<>() {
                 @Override
-                public void completeLoading(Collection<? extends DBAPrivilege> privs) {
+                public void completeLoading(@Nullable Collection<? extends DBAPrivilege> privs) {
                     super.completeLoading(privs);
                     if (privs == null) {
                         return;
@@ -517,7 +510,7 @@ public abstract class ObjectACLEditor<PRIVILEGE extends DBAPrivilege, PRIVILEGE_
         }
 
         @Override
-        public void fillCustomActions(IContributionManager contributionManager) {
+        public void fillCustomActions(@NotNull IContributionManager contributionManager) {
             super.fillCustomActions(contributionManager);
 
             contributionManager.add(new Separator());

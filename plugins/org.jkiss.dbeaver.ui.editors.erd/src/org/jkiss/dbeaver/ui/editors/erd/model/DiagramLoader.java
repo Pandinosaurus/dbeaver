@@ -348,16 +348,13 @@ public class DiagramLoader extends ERDPersistedState {
 
                 // Load bends
                 for (Element bendElem : XMLUtils.getChildElementList(relElem, TAG_BEND)) {
-                    String type = bendElem.getAttribute(ATTR_TYPE);
-                    if (!BEND_RELATIVE.equals(type)) {
-                        String locX = bendElem.getAttribute(ATTR_X);
-                        String locY = bendElem.getAttribute(ATTR_Y);
-                        if (!CommonUtils.isEmpty(locX) && !CommonUtils.isEmpty(locY)) {
-                            relationLoadInfo.bends.add(new int[] {
-                                Integer.parseInt(locX),
-                                Integer.parseInt(locY)
-                            } );
-                        }
+                    String locX = bendElem.getAttribute(ATTR_X);
+                    String locY = bendElem.getAttribute(ATTR_Y);
+                    if (!CommonUtils.isEmpty(locX) && !CommonUtils.isEmpty(locY)) {
+                        relationLoadInfo.bends.add(new int[] {
+                            Integer.parseInt(locX),
+                            Integer.parseInt(locY)
+                        });
                     }
                 }
                 monitor.worked(1);
@@ -419,7 +416,7 @@ public class DiagramLoader extends ERDPersistedState {
         // Save as XML
         StringWriter out = new StringWriter(1000);
         XMLBuilder xml = new XMLBuilder(out, GeneralUtils.UTF8_ENCODING, !compact);
-        xml.setButify(!compact);
+        xml.setBeautify(!compact);
         if (verbose) {
             xml.addContent(
                 """

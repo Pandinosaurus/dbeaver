@@ -1,7 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2025 DBeaver Corp and others
- * Copyright (C) 2017 Liu, Yuanyuan (liuyuanyuan@highgo.com)
+ * Copyright (C) 2010-2026 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +16,7 @@
  */
 package org.jkiss.dbeaver.ext.postgresql;
 
-import org.jkiss.dbeaver.utils.NLS;
+import org.eclipse.osgi.util.NLS;
 
 public class PostgreMessages extends NLS {
     static final String BUNDLE_NAME = "org.jkiss.dbeaver.ext.postgresql.PostgresResources"; //$NON-NLS-1$
@@ -97,12 +96,9 @@ public class PostgreMessages extends NLS {
     public static String wizard_restore_page_setting_title_setting;
 
     /* tool script */
-    public static String wizard_script_title_import_db;
     public static String wizard_script_title_execute_script;
     public static String tool_script_title_execute;
-    public static String tool_script_title_import;
     public static String tool_script_description_execute;
-    public static String tool_script_description_import;
     public static String tool_script_label_input;
     public static String tool_script_label_input_file;
 
@@ -143,8 +139,6 @@ public class PostgreMessages extends NLS {
     public static String dialog_setting_connection_cloud_instance;
     public static String dialog_setting_connection_port;
     public static String dialog_setting_connection_database;
-    public static String dialog_setting_connection_user;
-    public static String dialog_setting_connection_password;
     public static String dialog_setting_connection_settings;
     public static String dialog_setting_connection_localClient;
     public static String dialog_setting_connection_nondefaultDatabase;
@@ -187,7 +181,6 @@ public class PostgreMessages extends NLS {
     public static String edit_command_grant_privilege_action_grant_privilege;
     public static String edit_command_grant_privilege_action_revoke_privilege;
     public static String edit_constraint_page_add_constraint;
-    public static String role_privileges_editor_default_privileges_label;
 
     public static String dialog_create_push_button_grant_all;
     public static String dialog_create_push_button_revoke_all;

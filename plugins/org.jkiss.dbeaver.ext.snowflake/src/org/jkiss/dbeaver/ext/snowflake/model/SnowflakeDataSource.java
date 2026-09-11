@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2025 DBeaver Corp and others
+ * Copyright (C) 2010-2026 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import org.jkiss.dbeaver.ext.generic.model.GenericCatalog;
 import org.jkiss.dbeaver.ext.generic.model.GenericDataSource;
 import org.jkiss.dbeaver.ext.generic.model.GenericSchema;
 import org.jkiss.dbeaver.ext.snowflake.SnowflakeConstants;
+import org.jkiss.dbeaver.ext.snowflake.SnowflakeUtils;
 import org.jkiss.dbeaver.model.DBPDataSourceContainer;
 import org.jkiss.dbeaver.model.DBUtils;
 import org.jkiss.dbeaver.model.connection.DBPConnectionConfiguration;
@@ -64,7 +65,17 @@ public class SnowflakeDataSource extends GenericDataSource {
         @NotNull String purpose,
         @NotNull DBPConnectionConfiguration connectionInfo
     ) {
+        return getInternalConnectionProperties(connectionInfo);
+    }
+
+    @NotNull
+    static Map<String, String> getInternalConnectionProperties(@NotNull DBPConnectionConfiguration connectionInfo) {
         Map<String, String> props = new HashMap<>();
+
+        String warehouse = SnowflakeUtils.getWarehouse(connectionInfo);
+        if (!CommonUtils.isEmpty(warehouse)) {
+            props.put(SnowflakeConstants.PROP_WAREHOUSE, warehouse);
+        }
 
         // Backward compatibility - use legacy provider property
         // Newer versions use auth model
@@ -85,9 +96,9 @@ public class SnowflakeDataSource extends GenericDataSource {
     @Override
     protected Properties getAllConnectionProperties(
         @NotNull DBRProgressMonitor monitor,
-        JDBCExecutionContext context,
-        String purpose,
-        DBPConnectionConfiguration connectionInfo
+        @NotNull JDBCExecutionContext context,
+        @NotNull String purpose,
+        @NotNull DBPConnectionConfiguration connectionInfo
     ) throws DBCException {
         Properties props = super.getAllConnectionProperties(monitor, context, purpose, connectionInfo);
         final String clientAppName = DBUtils.getClientApplicationName(container, context, null, false);
@@ -103,9 +114,16 @@ public class SnowflakeDataSource extends GenericDataSource {
     }
 
     @Override
-    protected void initializeContextState(@NotNull DBRProgressMonitor monitor, @NotNull JDBCExecutionContext context,
-                                          @Nullable JDBCExecutionContext initFrom) throws DBException {
+    protected void initializeContextState(
+        @NotNull DBRProgressMonitor monitor,
+        @NotNull JDBCExecutionContext context,
+        @Nullable JDBCExecutionContext initFrom
+    ) throws DBException {
         SnowflakeExecutionContext executionContext = (SnowflakeExecutionContext) context;
+        String warehouse = SnowflakeUtils.getWarehouse(container.getActualConnectionConfiguration());
+        if (!CommonUtils.isEmpty(warehouse)) {
+            executionContext.setActiveWarehouse(monitor, warehouse);
+        }
         if (initFrom == null) {
             executionContext.refreshDefaults(monitor, true);
             return;

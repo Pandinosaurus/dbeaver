@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2025 DBeaver Corp and others
+ * Copyright (C) 2010-2026 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,12 +19,13 @@ package org.jkiss.dbeaver.model.ai.registry;
 import org.eclipse.core.runtime.IConfigurationElement;
 import org.eclipse.core.runtime.IExtensionRegistry;
 import org.eclipse.core.runtime.Platform;
-import org.jkiss.dbeaver.DBException;
+import org.jkiss.code.NotNull;
+import org.jkiss.code.Nullable;
 import org.jkiss.dbeaver.Log;
-import org.jkiss.dbeaver.model.ai.engine.AIEngine;
 import org.jkiss.utils.CommonUtils;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,9 +48,10 @@ public class AIEngineRegistry {
 
     private final Map<String, AIEngineDescriptor> descriptorMap = new LinkedHashMap<>();
     private final Map<String, String> replaceMap = new LinkedHashMap<>();
+    private final Map<String, String> fallbackMap = new LinkedHashMap<>();
 
-    public AIEngineRegistry(IExtensionRegistry registry) {
-        IConfigurationElement[] extElements = registry.getConfigurationElementsFor("com.dbeaver.ai.engine");
+    public AIEngineRegistry(@NotNull IExtensionRegistry registry) {
+        IConfigurationElement[] extElements = registry.getConfigurationElementsFor(AIEngineDescriptor.EXTENSION_ID);
         for (IConfigurationElement ext : extElements) {
             if ("completionEngine".equals(ext.getName())) {
                 AIEngineDescriptor descriptor = new AIEngineDescriptor(ext);
@@ -61,10 +63,17 @@ public class AIEngineRegistry {
                         replaceMap.put(rl, descriptor.getId());
                     }
                 }
+                String fallbacks = descriptor.getFallbacks();
+                if (!CommonUtils.isEmpty(fallbacks)) {
+                    for (String rl : fallbacks.split(",")) {
+                        fallbackMap.put(rl, descriptor.getId());
+                    }
+                }
             }
         }
     }
 
+    @NotNull
     public List<AIEngineDescriptor> getCompletionEngines() {
         List<AIEngineDescriptor> list = new ArrayList<>();
         for (Map.Entry<String, AIEngineDescriptor> entry : descriptorMap.entrySet()) {
@@ -73,27 +82,23 @@ public class AIEngineRegistry {
             }
             list.add(entry.getValue());
         }
+        list.sort(Comparator
+            .comparing(AIEngineDescriptor::isPromoted).reversed()
+            .thenComparing(AIEngineDescriptor::getLabel, String.CASE_INSENSITIVE_ORDER));
         return list;
     }
 
-    public AIEngineDescriptor getDefaultCompletionEngineDescriptor() {
-        return getCompletionEngines().stream().filter(AIEngineDescriptor::isDefault).findFirst().orElse(null);
-    }
-
-    public AIEngine getCompletionEngine(String id) throws DBException {
+    public boolean isEngineSupports(@NotNull String id, @NotNull Class<?> api) {
         AIEngineDescriptor descriptor = getEngineDescriptor(id);
-        if (descriptor == null) {
-            log.trace("Active engine is not present in the configuration, switching to default active engine");
-            AIEngineDescriptor defaultCompletionEngineDescriptor = getDefaultCompletionEngineDescriptor();
-            if (defaultCompletionEngineDescriptor == null) {
-                throw new DBException("AI engine '" + id + "' not found");
-            }
-            descriptor = defaultCompletionEngineDescriptor;
+        if (descriptor != null) {
+            Class<?> objectClass = descriptor.getEngineObjectType().getObjectClass();
+            return objectClass != null && api.isAssignableFrom(objectClass);
         }
-        return descriptor.createInstance();
+        return false;
     }
 
-    public AIEngineDescriptor getEngineDescriptor(String id) {
+    @Nullable
+    public AIEngineDescriptor getEngineDescriptor(@NotNull String id) {
         while (true) {
             String replace = replaceMap.get(id);
             if (replace == null) {
@@ -101,7 +106,24 @@ public class AIEngineRegistry {
             }
             id = replace;
         }
-        return descriptorMap.get(id);
+        AIEngineDescriptor engine = descriptorMap.get(id);
+        if (engine == null) {
+            String follBackId = fallbackMap.get(id);
+            if (follBackId != null) {
+                engine = descriptorMap.get(follBackId);
+            }
+        }
+        return engine;
     }
 
+    @Nullable
+    public AIEngineDescriptor getDescriptorByEngineClass(@NotNull Class<?> engineClass) {
+        return descriptorMap.entrySet().stream()
+            .filter(entry -> {
+                return engineClass.equals(entry.getValue().getEngineObjectType().getObjectClass());
+            })
+            .findFirst()
+            .map(Map.Entry::getValue)
+            .orElse(null);
+    }
 }

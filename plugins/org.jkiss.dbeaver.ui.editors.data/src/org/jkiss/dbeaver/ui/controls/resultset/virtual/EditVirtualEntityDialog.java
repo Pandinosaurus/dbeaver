@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2025 DBeaver Corp and others
+ * Copyright (C) 2010-2026 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,13 +17,10 @@
 package org.jkiss.dbeaver.ui.controls.resultset.virtual;
 
 import org.eclipse.jface.dialogs.IDialogConstants;
-import org.eclipse.jface.dialogs.IDialogSettings;
 import org.eclipse.osgi.util.NLS;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.CTabFolder;
 import org.eclipse.swt.custom.CTabItem;
-import org.eclipse.swt.events.SelectionAdapter;
-import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.events.SelectionListener;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
@@ -40,8 +37,6 @@ import org.jkiss.dbeaver.model.DBPEvaluationContext;
 import org.jkiss.dbeaver.model.DBUtils;
 import org.jkiss.dbeaver.model.data.DBDAttributeBinding;
 import org.jkiss.dbeaver.model.data.DBDAttributeTransformerDescriptor;
-import org.jkiss.dbeaver.model.data.DBDRowIdentifier;
-import org.jkiss.dbeaver.model.runtime.VoidProgressMonitor;
 import org.jkiss.dbeaver.model.struct.DBSEntity;
 import org.jkiss.dbeaver.model.struct.DBSEntityAttribute;
 import org.jkiss.dbeaver.model.struct.DBSEntityConstraint;
@@ -68,7 +63,7 @@ public class EditVirtualEntityDialog extends BaseTitleDialog implements IDialogP
 
     private static final Log log = Log.getLog(EditVirtualEntityDialog.class);
 
-    private static final String DIALOG_ID = "DBeaver.EditVirtualEntityDialog";//$NON-NLS-1$
+    //private static final String DIALOG_ID = "DBeaver.EditVirtualEntityDialog";//$NON-NLS-1$
 
     public static final int ID_CREATE_UNIQUE_KEY = 1000;
     public static final int ID_REMOVE_UNIQUE_KEY = 1001;
@@ -96,18 +91,20 @@ public class EditVirtualEntityDialog extends BaseTitleDialog implements IDialogP
         DICTIONARY,
     }
 
-    public EditVirtualEntityDialog(ResultSetViewer viewer, @Nullable DBSEntity entity, @NotNull DBVEntity vEntity) {
+    public EditVirtualEntityDialog(@NotNull ResultSetViewer viewer, @Nullable DBSEntity entity, @NotNull DBVEntity vEntity) {
         super(viewer.getControl().getShell(), null);
         this.viewer = viewer;
         this.entity = entity;
         this.vEntity = vEntity;
     }
 
+/*
     @Override
     protected IDialogSettings getDialogBoundsSettings()
     {
         return UIUtils.getDialogSettings(DIALOG_ID);
     }
+*/
 
     public InitPage getInitPage() {
         return initPage;
@@ -119,7 +116,7 @@ public class EditVirtualEntityDialog extends BaseTitleDialog implements IDialogP
 
     @Override
     protected Composite createDialogArea(Composite parent) {
-        getShell().setText(ResultSetMessages.controls_resultset_edit_logical_structure);
+        parent.getShell().setText(ResultSetMessages.controls_resultset_edit_logical_structure);
         setTitle(ResultSetMessages.controls_resultset_edit_logical_structure);
         try {
             UIUtils.runInProgressService(monitor -> {
@@ -139,7 +136,7 @@ public class EditVirtualEntityDialog extends BaseTitleDialog implements IDialogP
         }
         Composite composite = super.createDialogArea(parent);
 
-        CTabFolder tabFolder = new CTabFolder(composite, SWT.TOP);
+        CTabFolder tabFolder = new CTabFolder(composite, SWT.TOP | SWT.FLAT);
         tabFolder.setLayoutData(new GridData(GridData.FILL_BOTH));
 
         createColumnsPage(tabFolder);
@@ -283,16 +280,13 @@ public class EditVirtualEntityDialog extends BaseTitleDialog implements IDialogP
 
             Button btnAdd = createButton(buttonsPanel, ID_CREATE_FOREIGN_KEY,
                 ResultSetMessages.controls_resultset_virtual_foreignkey_page_add, false);
-            btnAdd.addSelectionListener(new SelectionAdapter() {
-                @Override
-                public void widgetSelected(SelectionEvent e) {
+            btnAdd.addSelectionListener(SelectionListener.widgetSelectedAdapter(e -> {
                     DBVEntityForeignKey virtualFK = EditForeignKeyPage.createVirtualForeignKey(vEntity);
                     if (virtualFK != null) {
                         createForeignKeyItem(fkTable, virtualFK);
                         structChanged = true;
                     }
-                }
-            });
+                }));
 
             Button btnRemove = createButton(
                 buttonsPanel,
@@ -300,9 +294,7 @@ public class EditVirtualEntityDialog extends BaseTitleDialog implements IDialogP
                 ResultSetMessages.controls_resultset_virtual_foreignkey_page_remove,
                 false);
             btnRemove.setEnabled(false);
-            btnRemove.addSelectionListener(new SelectionAdapter() {
-                @Override
-                public void widgetSelected(SelectionEvent e) {
+            btnRemove.addSelectionListener(SelectionListener.widgetSelectedAdapter(e -> {
                     DBVEntityForeignKey virtualFK = (DBVEntityForeignKey) fkTable.getSelection()[0].getData();
                     if (!UIUtils.confirmAction(getShell(),
                         ResultSetMessages.controls_resultset_virtual_foreignkey_page_remove_confirmation_title,
@@ -314,17 +306,13 @@ public class EditVirtualEntityDialog extends BaseTitleDialog implements IDialogP
                     vEntity.removeForeignKey(virtualFK);
                     fkTable.remove(fkTable.getSelectionIndices());
                     structChanged = true;
-                }
-            });
+                }));
         }
 
-        fkTable.addSelectionListener(new SelectionAdapter() {
-            @Override
-            public void widgetSelected(SelectionEvent e) {
+        fkTable.addSelectionListener(SelectionListener.widgetSelectedAdapter(e -> {
                 boolean hasSelection = fkTable.getSelectionIndex() >= 0;
                 getButton(ID_REMOVE_FOREIGN_KEY).setEnabled(hasSelection);
-            }
-        });
+            }));
     }
 
     private void createForeignKeyItem(Table fkTable, DBVEntityForeignKey fk) {

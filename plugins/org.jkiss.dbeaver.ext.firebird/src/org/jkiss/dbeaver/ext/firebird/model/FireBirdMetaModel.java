@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2025 DBeaver Corp and others
+ * Copyright (C) 2010-2026 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -292,8 +292,9 @@ public class FireBirdMetaModel extends GenericMetaModel
         return dbStat;
     }
 
+    @NotNull
     @Override
-    public GenericTableBase createTableOrViewImpl(GenericStructContainer container, @Nullable String tableName, @Nullable String tableType, @Nullable JDBCResultSet dbResult) {
+    public GenericTableBase createTableOrViewImpl(@NotNull GenericStructContainer container, @Nullable String tableName, @Nullable String tableType, @Nullable JDBCResultSet dbResult) {
         if (tableType != null && isView(tableType)) {
             return new FireBirdView(
                 container,
@@ -443,8 +444,7 @@ public class FireBirdMetaModel extends GenericMetaModel
 
     @Override
     public JDBCStatement prepareUniqueConstraintsLoadStatement(@NotNull JDBCSession session, @NotNull GenericStructContainer owner, @Nullable GenericTableBase forParent) throws SQLException {
-        return session.prepareStatement(
-            "select " +
+        String sql = "select " +
                 "RC.RDB$RELATION_NAME TABLE_NAME," +
                 "ISGMT.RDB$FIELD_NAME as COLUMN_NAME," +
                 "CAST((ISGMT.RDB$FIELD_POSITION + 1) as SMALLINT) as KEY_SEQ," +
@@ -454,8 +454,13 @@ public class FireBirdMetaModel extends GenericMetaModel
                 "RDB$RELATION_CONSTRAINTS RC " +
                 "INNER JOIN RDB$INDEX_SEGMENTS ISGMT ON RC.RDB$INDEX_NAME = ISGMT.RDB$INDEX_NAME " +
                 "where RC.RDB$CONSTRAINT_TYPE IN ('PRIMARY KEY','UNIQUE') " +
-                (forParent == null ? "" : "AND RC.RDB$RELATION_NAME = '" + forParent.getName()) + "' " +
-                "ORDER BY ISGMT.RDB$FIELD_NAME ");
+                (forParent == null ? "" : "AND RC.RDB$RELATION_NAME = ? ") +
+                "ORDER BY ISGMT.RDB$FIELD_NAME ";
+        JDBCPreparedStatement dbStat = session.prepareStatement(sql);
+        if (forParent != null) {
+            dbStat.setString(1, forParent.getName());
+        }
+        return dbStat;
     }
 
     @Override

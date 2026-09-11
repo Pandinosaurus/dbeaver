@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2025 DBeaver Corp and others
+ * Copyright (C) 2010-2026 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,56 +17,111 @@
 package org.jkiss.dbeaver.model.ai.registry;
 
 import org.eclipse.core.runtime.IConfigurationElement;
+import org.jkiss.code.NotNull;
+import org.jkiss.code.Nullable;
 import org.jkiss.dbeaver.DBException;
+import org.jkiss.dbeaver.model.DBPImage;
+import org.jkiss.dbeaver.model.ai.AIConfigurationProfile;
 import org.jkiss.dbeaver.model.ai.engine.AIEngine;
-import org.jkiss.dbeaver.model.ai.engine.AIEngineFactory;
+import org.jkiss.dbeaver.model.ai.engine.AIEngineProperties;
 import org.jkiss.dbeaver.model.impl.AbstractDescriptor;
-import org.jkiss.dbeaver.model.impl.PropertyDescriptor;
-import org.jkiss.dbeaver.model.preferences.DBPPropertyDescriptor;
 import org.jkiss.dbeaver.registry.RegistryConstants;
-import org.jkiss.utils.ArrayUtils;
 import org.jkiss.utils.CommonUtils;
-
-import java.util.ArrayList;
-import java.util.List;
 
 public class AIEngineDescriptor extends AbstractDescriptor {
 
-    private final IConfigurationElement contributorConfig;
-    private final List<DBPPropertyDescriptor> properties = new ArrayList<>();
-    private final ObjectType objectType;
+    public static final String EXTENSION_ID = "com.dbeaver.ai.engine";
 
-    protected AIEngineDescriptor(IConfigurationElement contributorConfig) {
+    private final IConfigurationElement contributorConfig;
+    private final String id;
+    private final DBPImage icon;
+    private final ObjectType objectType;
+    private final ObjectType propertiesType;
+    private final boolean promoted;
+    private final boolean supportsFunctions;
+    private final boolean providesMetadata;
+
+    protected AIEngineDescriptor(@NotNull IConfigurationElement contributorConfig) {
         super(contributorConfig);
         this.contributorConfig = contributorConfig;
-        for (IConfigurationElement propGroup : ArrayUtils.safeArray(contributorConfig.getChildren(PropertyDescriptor.TAG_PROPERTY_GROUP))) {
-            properties.addAll(PropertyDescriptor.extractProperties(propGroup));
-        }
-        objectType = new ObjectType(contributorConfig, RegistryConstants.ATTR_CLASS);
+        this.id = contributorConfig.getAttribute("id");
+        this.icon = iconToImage(contributorConfig.getAttribute(RegistryConstants.ATTR_ICON));
+        this.objectType = new ObjectType(contributorConfig, RegistryConstants.ATTR_CLASS);
+        this.promoted = CommonUtils.toBoolean(contributorConfig.getAttribute("promoted"));
+        this.supportsFunctions = CommonUtils.toBoolean(contributorConfig.getAttribute("supportsFunctions"));
+        this.propertiesType = new ObjectType(contributorConfig, "properties");
+        this.providesMetadata = CommonUtils.toBoolean(contributorConfig.getAttribute("providesMetadata"), true);
     }
 
+    @NotNull
     public String getId() {
-        return contributorConfig.getAttribute("id");
+        return id;
     }
 
+    @NotNull
+    public DBPImage getIcon() {
+        return icon;
+    }
+
+    @NotNull
     public String getLabel() {
         return contributorConfig.getAttribute("label");
     }
 
+    @Nullable
     public String getReplaces() {
         return contributorConfig.getAttribute("replaces");
+    }
+
+    @Nullable
+    public String getFallbacks() {
+        return contributorConfig.getAttribute("fallbacks");
     }
 
     public boolean isDefault() {
         return CommonUtils.toBoolean(contributorConfig.getAttribute("default"));
     }
 
-    public List<DBPPropertyDescriptor> getProperties() {
-        return properties;
+    public boolean isPromoted() {
+        return promoted;
     }
 
-    public AIEngine createInstance() throws DBException {
-        AIEngineFactory<?> instance = objectType.createInstance(AIEngineFactory.class);
-        return instance.createEngine(AISettingsRegistry.getInstance());
+    /**
+     * Indicates whether the engine provides model metadata such as context window size.
+     *
+     * @return true if the engine provides model metadata, false otherwise
+     */
+    public boolean isProvidesMetadata() {
+        return providesMetadata;
+    }
+
+
+    public boolean isSupportsFunctions() {
+        return supportsFunctions;
+    }
+
+    @NotNull
+    public Class<? extends AIEngineProperties> getPropertiesType() {
+        return propertiesType.getImplClass(AIEngineProperties.class);
+    }
+
+    @NotNull
+    public <T extends AIEngineProperties> T createPropertiesInstance() throws DBException {
+        return (T) propertiesType.createInstance(AIEngineProperties.class);
+    }
+
+    @NotNull
+    public ObjectType getEngineObjectType() {
+        return objectType;
+    }
+
+    @NotNull
+    public AIEngine<?> createEngineInstance(@NotNull AIConfigurationProfile profile) throws DBException {
+        return createEngineInstance(profile.getConfiguration());
+    }
+
+    @NotNull
+    public AIEngine<?> createEngineInstance(@NotNull AIEngineProperties properties) throws DBException {
+        return objectType.createInstance(AIEngine.class, properties);
     }
 }

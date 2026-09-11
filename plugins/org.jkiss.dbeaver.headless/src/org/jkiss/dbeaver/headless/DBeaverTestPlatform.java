@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2025 DBeaver Corp and others
+ * Copyright (C) 2010-2026 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ package org.jkiss.dbeaver.headless;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.Plugin;
 import org.jkiss.code.NotNull;
+import org.jkiss.dbeaver.DBException;
 import org.jkiss.dbeaver.Log;
 import org.jkiss.dbeaver.model.DBConstants;
 import org.jkiss.dbeaver.model.DBPExternalFileManager;
@@ -27,19 +28,16 @@ import org.jkiss.dbeaver.model.app.*;
 import org.jkiss.dbeaver.model.impl.app.BaseApplicationImpl;
 import org.jkiss.dbeaver.model.impl.app.DefaultCertificateStorage;
 import org.jkiss.dbeaver.model.preferences.DBPPreferenceStore;
-import org.jkiss.dbeaver.model.qm.QMRegistry;
 import org.jkiss.dbeaver.model.qm.QMUtils;
 import org.jkiss.dbeaver.model.runtime.DBRProgressMonitor;
 import org.jkiss.dbeaver.registry.BasePlatformImpl;
 import org.jkiss.dbeaver.registry.DataSourceProviderRegistry;
 import org.jkiss.dbeaver.registry.GlobalEventManagerImpl;
 import org.jkiss.dbeaver.registry.language.PlatformLanguageRegistry;
-import org.jkiss.dbeaver.runtime.qm.QMRegistryImpl;
 import org.jkiss.dbeaver.utils.ContentUtils;
 import org.jkiss.utils.CommonUtils;
 import org.jkiss.utils.StandardConstants;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -59,11 +57,10 @@ public class DBeaverTestPlatform extends BasePlatformImpl implements DBPPlatform
 
     private static volatile boolean isClosing = false;
 
-    private File tempFolder;
+    private Path tempFolder;
     private DBeaverTestWorkspace workspace;
 
     private static boolean disposed = false;
-    private QMRegistryImpl qmController;
     private DefaultCertificateStorage defaultCertificateStorage;
 
     public static String getCorePluginID() {
@@ -85,19 +82,19 @@ public class DBeaverTestPlatform extends BasePlatformImpl implements DBPPlatform
     DBeaverTestPlatform() {
     }
 
-    protected void initialize() {
+    protected void initialize() throws DBException {
         long startTime = System.currentTimeMillis();
         log.debug("Initialize Test Platform...");
 
         this.defaultCertificateStorage = new DefaultCertificateStorage(
+            this,
             DBeaverTestActivator.getConfigurationFile(DBConstants.CERTIFICATE_STORAGE_FOLDER).toPath());
 
         // Register properties adapter
         this.workspace = new DBeaverTestWorkspace(this, ResourcesPlugin.getWorkspace());
         this.workspace.initializeProjects();
 
-        QMUtils.initApplication(this);
-        this.qmController = new QMRegistryImpl();
+        QMUtils.initPlatform(false);
 
         super.initialize();
 
@@ -114,13 +111,14 @@ public class DBeaverTestPlatform extends BasePlatformImpl implements DBPPlatform
 
         workspace.dispose();
 
+        QMUtils.disposePlatform();
         DataSourceProviderRegistry.dispose();
 
         // Remove temp folder
         if (tempFolder != null) {
 
             if (!ContentUtils.deleteFileRecursive(tempFolder)) {
-                log.warn("Can't delete temp folder '" + tempFolder.getAbsolutePath() + "'");
+                log.warn("Can't delete temp folder '" + tempFolder.toAbsolutePath() + "'");
             }
             tempFolder = null;
         }
@@ -139,7 +137,7 @@ public class DBeaverTestPlatform extends BasePlatformImpl implements DBPPlatform
 
     @NotNull
     @Override
-    public DBPPlatformLanguage getLanguage() {
+    public DBPPlatformLanguage getPlatformLanguage() {
         return PlatformLanguageRegistry.getInstance().getLanguage(Locale.ENGLISH);
     }
 
@@ -147,11 +145,6 @@ public class DBeaverTestPlatform extends BasePlatformImpl implements DBPPlatform
     @Override
     public DBeaverHeadlessApplication getApplication() {
         return (DBeaverHeadlessApplication) BaseApplicationImpl.getInstance();
-    }
-
-    @NotNull
-    public QMRegistry getQueryManager() {
-        return qmController;
     }
 
     @NotNull
@@ -189,29 +182,35 @@ public class DBeaverTestPlatform extends BasePlatformImpl implements DBPPlatform
             // Make temp folder
             monitor.subTask("Create temp folder");
             try {
-                final java.nio.file.Path tempDirectory = Files.createTempDirectory(TEMP_PROJECT_NAME);
-                tempFolder = tempDirectory.toFile();
+                tempFolder = Files.createTempDirectory(TEMP_PROJECT_NAME);
             } catch (IOException e) {
-                final String sysTempFolder = System.getProperty(StandardConstants.ENV_TMP_DIR);
+                String sysTempFolder = System.getProperty(StandardConstants.ENV_TMP_DIR);
                 if (!CommonUtils.isEmpty(sysTempFolder)) {
-                    tempFolder = new File(sysTempFolder, TEMP_PROJECT_NAME);
-                    if (!tempFolder.mkdirs()) {
-                        final String sysUserFolder = System.getProperty(StandardConstants.ENV_USER_HOME);
+                    tempFolder = Path.of(sysTempFolder, TEMP_PROJECT_NAME);
+                    try {
+                        Files.createDirectories(tempFolder);
+                    } catch (IOException ex) {
+                        String sysUserFolder = System.getProperty(StandardConstants.ENV_USER_HOME);
                         if (!CommonUtils.isEmpty(sysUserFolder)) {
-                            tempFolder = new File(sysUserFolder, TEMP_PROJECT_NAME);
-                            if (!tempFolder.mkdirs()) {
-                                tempFolder = new File(TEMP_PROJECT_NAME);
+                            tempFolder = Path.of(sysUserFolder, TEMP_PROJECT_NAME);
+                            try {
+                                Files.createDirectories(tempFolder);
+                            } catch (IOException exc) {
+                                tempFolder = Path.of(TEMP_PROJECT_NAME);
                             }
                         }
-
                     }
                 }
             }
         }
-        if (!tempFolder.exists() && !tempFolder.mkdirs()) {
-            log.error("Can't create temp directory " + tempFolder.getAbsolutePath());
+        if (!Files.exists(tempFolder)) {
+            try {
+                Files.createDirectories(tempFolder);
+            } catch (IOException e) {
+                log.error("Can't create temp directory " + tempFolder.toAbsolutePath());
+            }
         }
-        return tempFolder.toPath();
+        return tempFolder;
     }
 
     @Override

@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2025 DBeaver Corp and others
+ * Copyright (C) 2010-2026 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,6 +37,7 @@ import org.jkiss.dbeaver.model.struct.DBStructUtils;
 import org.jkiss.dbeaver.ui.UIUtils;
 import org.jkiss.dbeaver.ui.actions.ConnectionCommands;
 import org.jkiss.dbeaver.ui.editors.EditorUtils;
+import org.jkiss.dbeaver.utils.RuntimeUtils;
 
 public class DataSourceToolbarUtils {
 
@@ -82,18 +83,20 @@ public class DataSourceToolbarUtils {
 
             for (MTrimElement element : topTrim.getChildren()) {
                 if (CONNECTION_SELECTOR_TOOLBAR_ID.equals(element.getElementId())) {
-                    if (element instanceof MElementContainer) {
-                        MElementContainer<? extends MUIElement> container = (MElementContainer<? extends MUIElement>) element;
+                    if (element instanceof MElementContainer<?> container) {
                         Object widget = element.getWidget();
                         if (widget instanceof Composite controlsPanel) {
                             Control[] childControl = controlsPanel.getChildren();
                             for (Control cc : childControl) {
-                                cc.setBackground(bgColor);
+                                cc.setBackground(bgColor == null ? controlsPanel.getBackground() : bgColor);
                                 cc.setEnabled(showConnectionSelector && canChangeConn);
                             }
                         }
 
-                        for (MUIElement tbItem : container.getChildren()) {
+                        for (Object child : container.getChildren()) {
+                            if (!(child instanceof MUIElement tbItem)) {
+                                continue;
+                            }
                             // Handle Eclipse bug. By default, it doesn't update contents of main toolbar elements
                             // So we need to hide/show it to force text update
                             if (showConnectionSelector) {
@@ -109,7 +112,19 @@ public class DataSourceToolbarUtils {
                             }
                         }
                     }
-                    return;
+                } else if (RuntimeUtils.isWindows()) {
+                    // Fix of broken tool items bg color dbeaver/pro#10293
+                    // Set items background to toolbar background
+                    // We have similar fix in ConControlElementHandler
+                    if (element instanceof MElementContainer<?>) {
+                        Object widget = element.getWidget();
+                        if (widget instanceof Composite controlsPanel) {
+                            Color tbBg = controlsPanel.getBackground();
+                            for (Control cc : controlsPanel.getChildren()) {
+                                cc.setBackground(tbBg);
+                            }
+                        }
+                    }
                 }
             }
         }

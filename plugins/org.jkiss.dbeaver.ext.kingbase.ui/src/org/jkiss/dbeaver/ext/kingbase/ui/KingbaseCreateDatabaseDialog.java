@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2024 DBeaver Corp and others
+ * Copyright (C) 2010-2026 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,13 +21,13 @@ import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.jface.dialogs.IDialogConstants;
 import org.eclipse.swt.SWT;
-import org.eclipse.swt.events.SelectionAdapter;
-import org.eclipse.swt.events.SelectionEvent;
+import org.eclipse.swt.events.SelectionListener;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.widgets.Combo;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Text;
+import org.jkiss.code.NotNull;
 import org.jkiss.dbeaver.DBException;
 import org.jkiss.dbeaver.ext.kingbase.model.KingbaseDataSource;
 import org.jkiss.dbeaver.ext.postgresql.PostgreMessages;
@@ -70,16 +70,16 @@ public class KingbaseCreateDatabaseDialog extends BaseDialog {
     @Override
     protected Composite createDialogArea(Composite parent) {
         final Composite composite = super.createDialogArea(parent);
-        final Composite groupGeneral = UIUtils.createControlGroup(composite, PostgreMessages.dialog_create_db_group_general, 2,
-            GridData.FILL_HORIZONTAL, SWT.NONE);
+        final Composite groupGeneral = UIUtils.createTitledComposite(composite, PostgreMessages.dialog_create_db_group_general, 2,
+            GridData.FILL_HORIZONTAL);
         final Text nameText = UIUtils.createLabelText(groupGeneral, PostgreMessages.dialog_create_db_label_db_name, "");
         nameText.addModifyListener(e -> {
             name = nameText.getText().trim();
-            getButton(IDialogConstants.OK_ID).setEnabled(!name.isEmpty());
+            enableButton(IDialogConstants.OK_ID, !name.isEmpty());
         });
 
-        final Composite groupDefinition = UIUtils.createControlGroup(composite, PostgreMessages.dialog_create_db_group_definition, 2,
-            GridData.FILL_HORIZONTAL, SWT.NONE);
+        final Composite groupDefinition = UIUtils.createTitledComposite(composite, PostgreMessages.dialog_create_db_group_definition, 2,
+            GridData.FILL_HORIZONTAL);
         boolean supportsRoles = true;
         boolean supportsEncodings = dataSource.getServerType().supportsEncodings();
         boolean supportsTablespaces = dataSource.getServerType().supportsTablespaces();
@@ -89,12 +89,7 @@ public class KingbaseCreateDatabaseDialog extends BaseDialog {
 
         dbCompatibleMode = UIUtils.createLabelCombo(groupDefinition, "DataBase Compatibility Mode",
             SWT.BORDER | SWT.DROP_DOWN | SWT.READ_ONLY);
-        dbCompatibleMode.addSelectionListener(new SelectionAdapter() {
-            @Override
-            public void widgetSelected(SelectionEvent e) {
-                compatibleMode = dbCompatibleMode.getText();
-            }
-        });
+        dbCompatibleMode.addSelectionListener(SelectionListener.widgetSelectedAdapter(e -> compatibleMode = dbCompatibleMode.getText()));
 
         scheduleLoadUsersJob(supportsRoles, supportsEncodings, supportsTablespaces);
 
@@ -103,8 +98,9 @@ public class KingbaseCreateDatabaseDialog extends BaseDialog {
 
     private void scheduleLoadUsersJob(boolean supportsRoles, boolean supportsEncodings, boolean supportsTablespaces) {
         new AbstractJob("Load users") {
+            @NotNull
             @Override
-            protected IStatus run(DBRProgressMonitor monitor) {
+            protected IStatus run(@NotNull DBRProgressMonitor monitor) {
                 monitor.beginTask("Create database", 1);
                 try {
                     PostgreDatabase database = dataSource.getDefaultInstance();
@@ -170,16 +166,13 @@ public class KingbaseCreateDatabaseDialog extends BaseDialog {
         if (supportsTablespaces) {
             tablespaceCombo = UIUtils.createLabelCombo(groupDefinition, PostgreMessages.dialog_create_db_label_tablesapce,
                 SWT.BORDER | SWT.DROP_DOWN | SWT.READ_ONLY);
-            tablespaceCombo.addSelectionListener(new SelectionAdapter() {
-                @Override
-                public void widgetSelected(SelectionEvent e) {
+            tablespaceCombo.addSelectionListener(SelectionListener.widgetSelectedAdapter(e -> {
                     if (tablespaceCombo.getSelectionIndex() == 0) {
                         tablespace = null;
                     } else {
                         tablespace = allTablespaces.get(tablespaceCombo.getSelectionIndex() - 1);
                     }
-                }
-            });
+                }));
         }
     }
 
@@ -187,12 +180,8 @@ public class KingbaseCreateDatabaseDialog extends BaseDialog {
         if (supportsEncodings) {
             encodingCombo = UIUtils.createLabelCombo(groupDefinition, PostgreMessages.dialog_create_db_label_encoding,
                 SWT.BORDER | SWT.DROP_DOWN | SWT.READ_ONLY);
-            encodingCombo.addSelectionListener(new SelectionAdapter() {
-                @Override
-                public void widgetSelected(SelectionEvent e) {
-                    encoding = allEncodings.get(encodingCombo.getSelectionIndex());
-                }
-            });
+            encodingCombo.addSelectionListener(SelectionListener.widgetSelectedAdapter(e ->
+                encoding = allEncodings.get(encodingCombo.getSelectionIndex())));
         }
     }
 
@@ -200,12 +189,8 @@ public class KingbaseCreateDatabaseDialog extends BaseDialog {
         if (supportsRoles) {
             userCombo = UIUtils.createLabelCombo(groupGeneral, PostgreMessages.dialog_create_db_label_owner,
                 SWT.BORDER | SWT.DROP_DOWN | SWT.READ_ONLY);
-            userCombo.addSelectionListener(new SelectionAdapter() {
-                @Override
-                public void widgetSelected(SelectionEvent e) {
-                    owner = allUsers.get(userCombo.getSelectionIndex());
-                }
-            });
+            userCombo.addSelectionListener(SelectionListener.widgetSelectedAdapter(e ->
+                owner = allUsers.get(userCombo.getSelectionIndex())));
         }
     }
 
@@ -234,8 +219,8 @@ public class KingbaseCreateDatabaseDialog extends BaseDialog {
     }
 
     @Override
-    protected void createButtonsForButtonBar(Composite parent) {
+    protected void createButtonsForButtonBar(@NotNull Composite parent) {
         super.createButtonsForButtonBar(parent);
-        getButton(IDialogConstants.OK_ID).setEnabled(false);
+        enableButton(IDialogConstants.OK_ID, false);
     }
 }

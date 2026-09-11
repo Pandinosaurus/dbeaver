@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2025 DBeaver Corp and others
+ * Copyright (C) 2010-2026 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -56,11 +56,15 @@ public class MySQLConstants {
 
     public static final String PROP_CACHE_META_DATA = "cache-meta-data";
 
+    public static final String PROP_SHOW_ALL_DBS = DBConstants.INTERNAL_PROP_PREFIX + "show-all-dbs@";
+    public static final boolean PROP_SHOW_ALL_DBS_DEFAULT = true;
+
     public static final String[] TABLE_TYPES = new String[]{"TABLE", "VIEW", "LOCAL TEMPORARY"};
 
     public static final String INFO_SCHEMA_NAME = "information_schema";
     public static final String PERFORMANCE_SCHEMA_NAME = "performance_schema";
     public static final String MYSQL_SCHEMA_NAME = "mysql";
+    public static final String SYS_SCHEMA_NAME = "sys";
 
     public static final String META_TABLE_ENGINES = INFO_SCHEMA_NAME + ".ENGINES";
     public static final String META_TABLE_SCHEMATA = INFO_SCHEMA_NAME + ".SCHEMATA";

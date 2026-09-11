@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2025 DBeaver Corp and others
+ * Copyright (C) 2010-2026 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
  */
 package org.jkiss.dbeaver.tasks.ui.sql.internal;
 
-import org.jkiss.dbeaver.utils.NLS;
+import org.eclipse.osgi.util.NLS;
 
 public class TasksSQLUIMessages extends NLS {
     static final String BUNDLE_NAME = "org.jkiss.dbeaver.tasks.ui.sql.internal.TasksSQLUIMessages"; //$NON-NLS-1$
@@ -32,7 +32,6 @@ public class TasksSQLUIMessages extends NLS {
     public static String sql_tool_task_wizard_page_settings_tool_item_text_move_script_down;
     public static String sql_tool_task_wizard_page_settings_group_label_settings;
     public static String sql_tool_task_wizard_page_settings_sql_panel_name;
-    public static String sql_tool_task_wizard_page_settings_dialog_button_label_copy;
     public static String sql_tool_task_wizard_page_status_name;
     public static String sql_tool_task_wizard_page_status_title;
     public static String sql_tool_task_wizard_page_status_description;

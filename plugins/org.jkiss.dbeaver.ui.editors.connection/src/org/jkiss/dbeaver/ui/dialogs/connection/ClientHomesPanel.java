@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2025 DBeaver Corp and others
+ * Copyright (C) 2010-2026 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,8 +19,7 @@ package org.jkiss.dbeaver.ui.dialogs.connection;
 import org.eclipse.jface.dialogs.IDialogConstants;
 import org.eclipse.osgi.util.NLS;
 import org.eclipse.swt.SWT;
-import org.eclipse.swt.events.SelectionAdapter;
-import org.eclipse.swt.events.SelectionEvent;
+import org.eclipse.swt.events.SelectionListener;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.*;
@@ -41,8 +40,8 @@ import org.jkiss.utils.ArrayUtils;
 import org.jkiss.utils.CommonUtils;
 
 import java.lang.reflect.InvocationTargetException;
-import java.util.List;
 import java.util.*;
+import java.util.List;
 
 /**
  * ClientHomesPanel
@@ -87,42 +86,36 @@ public class ClientHomesPanel extends Composite {
         ((GridData) (listGroup.getLayoutData())).minimumWidth = 200;
         homesTable = new Table(listGroup, SWT.SINGLE | SWT.BORDER | SWT.FULL_SELECTION | SWT.H_SCROLL | SWT.V_SCROLL);
         homesTable.setLayoutData(new GridData(GridData.FILL_BOTH));
-        homesTable.addSelectionListener(new SelectionAdapter() {
-            @Override
-            public void widgetSelected(SelectionEvent e) {
+        homesTable.addSelectionListener(SelectionListener.widgetSelectedAdapter(e -> {
                 TableItem[] selection = homesTable.getSelection();
                 if (ArrayUtils.isEmpty(selection)) {
                     selectHome(null);
                 } else {
                     selectHome((HomeInfo) selection[0].getData());
                 }
-            }
-        });
+            }));
         Composite buttonsGroup = UIUtils.createPlaceholder(listGroup, 2, 5);
         buttonsGroup.setLayoutData(new GridData(GridData.FILL_HORIZONTAL | GridData.HORIZONTAL_ALIGN_END));
         Button addButton = new Button(buttonsGroup, SWT.PUSH);
         addButton.setText(UIConnectionMessages.controls_client_homes_panel_button_add_home);
-        addButton.addSelectionListener(new SelectionAdapter() {
-            @Override
-            public void widgetSelected(SelectionEvent e) {
-                addClientHome();
-            }
-        });
+        addButton.addSelectionListener(SelectionListener.widgetSelectedAdapter(e -> addClientHome()));
         removeButton = new Button(buttonsGroup, SWT.PUSH);
         removeButton.setText(UIConnectionMessages.controls_client_homes_panel_button_remove_home);
         removeButton.setEnabled(false);
-        removeButton.addSelectionListener(new SelectionAdapter() {
-            @Override
-            public void widgetSelected(SelectionEvent e) {
+        removeButton.addSelectionListener(SelectionListener.widgetSelectedAdapter(e -> {
                 TableItem[] selection = homesTable.getSelection();
                 if (!ArrayUtils.isEmpty(selection)) {
                     removeClientHome();
                 }
-            }
-        });
+            }));
 
-        Group infoGroup = UIUtils.createControlGroup(this, UIConnectionMessages.controls_client_homes_panel_group_information, 2, GridData.VERTICAL_ALIGN_BEGINNING | GridData.FILL_HORIZONTAL, 0);
-        ((GridData) (infoGroup.getLayoutData())).minimumWidth = 300;
+        Composite infoGroup = UIUtils.createTitledComposite(
+            this,
+            UIConnectionMessages.controls_client_homes_panel_group_information,
+            2,
+            GridData.VERTICAL_ALIGN_BEGINNING | GridData.FILL_HORIZONTAL,
+            0
+        );
         idText = UIUtils.createLabelText(infoGroup, UIConnectionMessages.controls_client_homes_panel_label_id, null, SWT.BORDER | SWT.READ_ONLY);
         pathText = UIUtils.createLabelText(infoGroup, UIConnectionMessages.controls_client_homes_panel_label_path, null, SWT.BORDER | SWT.READ_ONLY);
         nameText = UIUtils.createLabelText(infoGroup, UIConnectionMessages.controls_client_homes_panel_label_name, null, SWT.BORDER | SWT.READ_ONLY);
@@ -135,12 +128,8 @@ public class ClientHomesPanel extends Composite {
             UIUtils.createLink(
                 infoPanel,
                 UIConnectionMessages.controls_client_homes_panel_link_message,
-                new SelectionAdapter() {
-                    @Override
-                    public void widgetSelected(SelectionEvent e) {
-                        ShellUtils.launchProgram(HelpUtils.getHelpExternalReference(WIKI_CONFIGURE_CLIENT));
-                    }
-                });
+                SelectionListener.widgetSelectedAdapter(e ->
+                    ShellUtils.launchProgram(HelpUtils.getHelpExternalReference(WIKI_CONFIGURE_CLIENT))));
             GridData gridData = new GridData(GridData.FILL, SWT.END, true, true);
             gridData.horizontalSpan = 2;
             infoPanel.setLayoutData(gridData);
@@ -267,10 +256,10 @@ public class ClientHomesPanel extends Composite {
         homeItem.setImage(DBeaverIcons.getImage(UIIcon.HOME));
         homeItem.setData(homeInfo);
         if (!homeInfo.isProvided) {
-            homeItem.setFont(BaseThemeSettings.instance.baseFontItalic);
+            homeItem.setFont(BaseThemeSettings.instance.treeAndTableFontItalic);
         } else {
             if (homeInfo.isDefault) {
-                homeItem.setFont(BaseThemeSettings.instance.baseFontBold);
+                homeItem.setFont(BaseThemeSettings.instance.treeAndTableFontBold);
             }
         }
         return homeItem;
@@ -317,9 +306,14 @@ public class ClientHomesPanel extends Composite {
         protected void buttonPressed(int buttonId) {
             if (IDialogConstants.OK_ID == buttonId) {
                 selectedHome = panel.getSelectedHome();
-                if (driver instanceof DriverDescriptor) {
-                    ((DriverDescriptor) driver).setNativeClientLocations(panel.getLocalLocations());
-                    ((DriverDescriptor) driver).getProviderDescriptor().getRegistry().saveDrivers();
+                if (driver instanceof DriverDescriptor descriptor) {
+                    descriptor.setNativeClientLocations(panel.getLocalLocations());
+                    try {
+                        descriptor.getProviderDescriptor().getRegistry().saveDrivers();
+                    } catch (DBException e) {
+                        DBWorkbench.getPlatformUI().showError("Save error", "Error saving drivers", e);
+                        return;
+                    }
                 }
             }
             super.buttonPressed(buttonId);

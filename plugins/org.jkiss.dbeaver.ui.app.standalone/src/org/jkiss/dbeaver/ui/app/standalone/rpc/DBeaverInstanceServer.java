@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2025 DBeaver Corp and others
+ * Copyright (C) 2010-2026 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 
 package org.jkiss.dbeaver.ui.app.standalone.rpc;
 
-import org.apache.commons.cli.CommandLine;
+
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
@@ -32,8 +32,8 @@ import org.jkiss.dbeaver.model.DBPDataSourceContainer;
 import org.jkiss.dbeaver.model.app.DBPPlatformDesktop;
 import org.jkiss.dbeaver.model.app.DBPProject;
 import org.jkiss.dbeaver.model.cli.ApplicationInstanceServer;
-import org.jkiss.dbeaver.model.cli.CmdProcessResult;
-import org.jkiss.dbeaver.registry.DataSourceUtils;
+import org.jkiss.dbeaver.model.cli.CLIProcessResult;
+import org.jkiss.dbeaver.model.cli.InstanceServerProperties;
 import org.jkiss.dbeaver.runtime.DBWorkbench;
 import org.jkiss.dbeaver.ui.ActionUtils;
 import org.jkiss.dbeaver.ui.UIUtils;
@@ -43,9 +43,11 @@ import org.jkiss.dbeaver.ui.app.standalone.DBeaverCommandLine;
 import org.jkiss.dbeaver.ui.editors.EditorUtils;
 import org.jkiss.dbeaver.ui.editors.sql.handlers.SQLEditorHandlerOpenEditor;
 import org.jkiss.dbeaver.ui.editors.sql.handlers.SQLNavigatorContext;
+import org.jkiss.dbeaver.utils.DataSourceUtils;
 import org.jkiss.dbeaver.utils.GeneralUtils;
 import org.jkiss.dbeaver.utils.SystemVariablesResolver;
 import org.jkiss.utils.CommonUtils;
+import org.jkiss.utils.HttpConstants;
 import org.jkiss.utils.rest.RestClient;
 
 import java.io.File;
@@ -55,10 +57,7 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.KeyStore;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManagerFactory;
 
@@ -76,13 +75,8 @@ public class DBeaverInstanceServer extends ApplicationInstanceServer<IInstanceCo
         super(IInstanceController.class);
     }
 
-    @Nullable
+    @NotNull
     public static DBeaverInstanceServer createServer() throws IOException {
-        if (createClient() != null) {
-            log.debug("Can't start instance server because other instance is already running");
-            return null;
-        }
-
         return new DBeaverInstanceServer();
     }
 
@@ -92,48 +86,64 @@ public class DBeaverInstanceServer extends ApplicationInstanceServer<IInstanceCo
     }
 
     @Nullable
-    public static IInstanceController createClient(@Nullable String workspacePath) {
-        final Path path = getConfigPath(workspacePath);
+    public static IInstanceController createClient(@Nullable Path workspacePath) {
+        Path path = getConfigPath(workspacePath);
 
-        if (Files.notExists(path)) {
-            log.trace("No instance controller is available");
-            return null;
+        SSLContext sslContext = initCustomSslContext();
+        for (InstanceServerProperties serverProperties : deserializeProperties(path)) {
+            IInstanceController instance = RestClient
+                .builder(URI.create("http://localhost:" + serverProperties.port()), IInstanceController.class)
+                .setSslContext(sslContext)
+                .setHeaders(Map.of(HttpConstants.HEADER_AUTHORIZATION, HttpConstants.BEARER_PREFIX + serverProperties.password()))
+                .create();
+
+            try {
+                long payload = System.currentTimeMillis();
+                long response = instance.ping(payload);
+
+                if (response != payload) {
+                    throw new IllegalStateException("Invalid ping response: " + response + ", was expecting " + payload);
+                }
+                return instance;
+            } catch (Throwable e) {
+                log.debug("Error accessing instance server at port " + serverProperties.port() + ": " + e.getMessage(), e);
+            }
         }
 
-        final Properties properties = new Properties();
+        return null;
+    }
 
+    @NotNull
+    private static List<InstanceServerProperties> deserializeProperties(@NotNull Path path) {
+        if (Files.notExists(path)) {
+            log.trace("No instance controller is available");
+            return List.of();
+        }
+
+        Properties properties = new Properties();
         try (Reader reader = Files.newBufferedReader(path)) {
             properties.load(reader);
         } catch (IOException e) {
             log.error("Error reading instance controller configuration: " + e.getMessage());
-            return null;
+            return List.of();
         }
 
-        final String port = properties.getProperty("port");
-
-        if (CommonUtils.isEmptyTrimmed(port)) {
-            log.error("No port specified for the instance controller to connect to");
-            return null;
+        Map<Long, InstanceServerProperties> registry = InstanceServerProperties.readAllFrom(properties);
+        List<InstanceServerProperties> instances = new ArrayList<>(registry.size());
+        // current pid must always be first one to ping, then prefer the newest instance
+        InstanceServerProperties currentInstance = registry.remove(ProcessHandle.current().pid());
+        if (currentInstance != null) {
+            instances.add(currentInstance);
         }
-
-        final IInstanceController instance = RestClient
-            .builder(URI.create("http://localhost:" + port), IInstanceController.class)
-            .setSslContext(initCustomSslContext())
-            .create();
-
-        try {
-            final long payload = System.currentTimeMillis();
-            final long response = instance.ping(payload);
-
-            if (response != payload) {
-                throw new IllegalStateException("Invalid ping response: " + response + ", was expecting " + payload);
-            }
-        } catch (Throwable e) {
-            log.error("Error accessing instance server: " + e.getMessage());
-            return null;
-        }
-
-        return instance;
+        Comparator<Map.Entry<Long, InstanceServerProperties>> newestInstanceComparator =
+            Comparator.<Map.Entry<Long, InstanceServerProperties>>comparingLong(e -> e.getValue().startedAt())
+                .reversed()
+                .thenComparing(Map.Entry::getKey, Comparator.reverseOrder());
+        registry.entrySet().stream()
+            .sorted(newestInstanceComparator)
+            .map(Map.Entry::getValue)
+            .forEach(instances::add);
+        return instances;
     }
 
     /**
@@ -155,17 +165,16 @@ public class DBeaverInstanceServer extends ApplicationInstanceServer<IInstanceCo
 
     @NotNull
     @Override
-    public CmdProcessResult handleCommandLine(@NotNull String[] args) {
-        CommandLine cmd = DBeaverCommandLine.getInstance().getCommandLine(args);
-
+    public CLIProcessResult handleCommandLine(@NotNull String[] args) {
         try {
             return DBeaverCommandLine.getInstance().executeCommandLineCommands(
-                cmd,
                 this,
-                !DBeaverApplication.getInstance().isHeadlessMode()
+                !DBeaverApplication.getInstance().isHeadlessMode(),
+                true,
+                args
             );
         } catch (Exception e) {
-            return new CmdProcessResult(CmdProcessResult.PostAction.ERROR, "Error executing command: " + e.getMessage());
+            return new CLIProcessResult(CLIProcessResult.PostAction.ERROR, "Error executing command: " + e.getMessage());
         }
     }
 
@@ -197,7 +206,8 @@ public class DBeaverInstanceServer extends ApplicationInstanceServer<IInstanceCo
             GeneralUtils.replaceVariables(connectionSpec, SystemVariablesResolver.INSTANCE),
             instanceConParameters,
             false,
-            instanceConParameters.createNewConnection);
+            instanceConParameters.isCreateNewConnection()
+        );
         if (dataSourceContainer == null) {
             filesToConnect.clear();
             return;
@@ -207,14 +217,14 @@ public class DBeaverInstanceServer extends ApplicationInstanceServer<IInstanceCo
                 EditorUtils.setFileDataSource(file, new SQLNavigatorContext(dataSourceContainer));
             }
         }
-        if (instanceConParameters.openConsole) {
+        if (instanceConParameters.isOpenConsole()) {
             final IWorkbenchWindow workbenchWindow = UIUtils.getActiveWorkbenchWindow();
             UIUtils.syncExec(() -> {
                 SQLEditorHandlerOpenEditor.openSQLConsole(workbenchWindow, new SQLNavigatorContext(dataSourceContainer), dataSourceContainer.getName(), "");
                 workbenchWindow.getShell().forceActive();
 
             });
-        } else if (instanceConParameters.makeConnect) {
+        } else if (instanceConParameters.isMakeConnect()) {
             DataSourceHandler.connectToDataSource(null, dataSourceContainer, null);
         }
         filesToConnect.clear();
@@ -269,28 +279,5 @@ public class DBeaverInstanceServer extends ApplicationInstanceServer<IInstanceCo
                 shell.setActive();
             }
         });
-    }
-
-    private static class InstanceConnectionParameters implements GeneralUtils.IParameterHandler {
-        boolean makeConnect = true, openConsole = false, createNewConnection = true;
-
-        @Override
-        public boolean setParameter(String name, String value) {
-            return switch (name) {
-                case "connect" -> {
-                    makeConnect = CommonUtils.toBoolean(value);
-                    yield true;
-                }
-                case "openConsole" -> {
-                    openConsole = CommonUtils.toBoolean(value);
-                    yield true;
-                }
-                case "create" -> {
-                    createNewConnection = CommonUtils.toBoolean(value);
-                    yield true;
-                }
-                default -> false;
-            };
-        }
     }
 }

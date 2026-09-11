@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2024 DBeaver Corp and others
+ * Copyright (C) 2010-2026 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,17 +16,12 @@
  */
 package org.jkiss.dbeaver.ui.editors.json.internal;
 
-import org.jkiss.dbeaver.utils.NLS;
+import org.eclipse.osgi.util.NLS;
 
 public class JSONEditorMessages extends NLS {
     private static final String BUNDLE_NAME = "org.jkiss.dbeaver.ui.editors.json.internal.JSONEditorMessages"; //$NON-NLS-1$
 
     public static String JSONEditorPart_title;
-    public static String JSONPanelEditor_e_load_json;
-    public static String JSONPanelEditor_e_save_json;
-    public static String JSONPanelEditor_subtask_prime_task;
-    public static String JSONPanelEditor_task_prime;
-    public static String JSONPanelEditor_task_read_json;
     static {
         // initialize resource bundle
         NLS.initializeMessages(BUNDLE_NAME, JSONEditorMessages.class);

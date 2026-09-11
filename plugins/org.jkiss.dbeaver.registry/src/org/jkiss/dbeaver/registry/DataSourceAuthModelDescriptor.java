@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2025 DBeaver Corp and others
+ * Copyright (C) 2010-2026 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 
 package org.jkiss.dbeaver.registry;
 
+import org.eclipse.core.expressions.Expression;
 import org.eclipse.core.runtime.IConfigurationElement;
 import org.jkiss.code.NotNull;
 import org.jkiss.code.Nullable;
@@ -53,11 +54,12 @@ public class DataSourceAuthModelDescriptor extends DataSourceBindingDescriptor i
     private DBPImage icon;
     private final boolean defaultModel;
     private final boolean isDesktop;
-    private final boolean isCloud;
+    private final boolean requiresServerApplication;
     private final boolean requiresLocalConfiguration;
     private final Map<String, String[]> replaces = new HashMap<>();
     private final List<DBPDriverLibrary> libraries;
     private boolean hasCondReplaces = false;
+    private final Expression enabledWhen;
 
     private DBAAuthModel<?> instance;
 
@@ -74,7 +76,7 @@ public class DataSourceAuthModelDescriptor extends DataSourceBindingDescriptor i
         }
         this.defaultModel = CommonUtils.toBoolean(config.getAttribute(RegistryConstants.ATTR_DEFAULT));
         this.isDesktop = CommonUtils.toBoolean(config.getAttribute("desktop"));
-        this.isCloud = CommonUtils.toBoolean(config.getAttribute("cloud"));
+        this.requiresServerApplication = CommonUtils.toBoolean(config.getAttribute("requiresServerApplication"));
         this.requiresLocalConfiguration = CommonUtils.toBoolean(config.getAttribute("requiresLocalConfiguration"));
         this.requiredAuthProvider = CommonUtils.toString(config.getAttribute("requiredAuthProvider"));
         for (IConfigurationElement dsConfig : config.getChildren("replace")) {
@@ -89,9 +91,12 @@ public class DataSourceAuthModelDescriptor extends DataSourceBindingDescriptor i
         for (IConfigurationElement libConfig : config.getChildren(RegistryConstants.TAG_FILE)) {
             DriverLibraryAbstract lib = DriverLibraryAbstract.createFromConfig(null, libConfig);
             if (lib != null) {
+                lib.setCustom(false);
                 libraries.add(lib);
             }
         }
+
+        this.enabledWhen = getEnablementExpression(config);
     }
 
     @NotNull
@@ -133,8 +138,8 @@ public class DataSourceAuthModelDescriptor extends DataSourceBindingDescriptor i
     }
 
     @Override
-    public boolean isCloudModel() {
-        return isCloud;
+    public boolean requiresServerApplication() {
+        return requiresServerApplication;
     }
 
     @Override
@@ -196,11 +201,12 @@ public class DataSourceAuthModelDescriptor extends DataSourceBindingDescriptor i
         return requiredAuthProvider;
     }
 
-    boolean appliesTo(DBPDriver driver) {
-        return isDriverApplicable(driver);
+    boolean appliesTo(@NotNull DBPDriver driver) {
+        return isExpressionTrue(enabledWhen, driver) && isDriverApplicable(driver);
     }
 
-    public Collection<String> getReplaces(DBPDriver driver) {
+    @NotNull
+    public Collection<String> getReplaces(@NotNull DBPDriver driver) {
         if (hasCondReplaces) {
             List<String> replList = new ArrayList<>();
             for (Map.Entry<String, String[]> re : replaces.entrySet()) {

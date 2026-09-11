@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2025 DBeaver Corp and others
+ * Copyright (C) 2010-2026 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,11 +25,11 @@ import org.eclipse.swt.events.PaintListener;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.GC;
 import org.jkiss.code.NotNull;
+import org.jkiss.code.Nullable;
 import org.jkiss.dbeaver.Log;
 import org.jkiss.dbeaver.ui.UIUtils;
 
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
+import java.util.Arrays;
 
 public class SQLSuggestionTextPainter implements IPainter, PaintListener, LineBackgroundListener {
     private static final Log log = Log.getLog(SQLSuggestionTextPainter.class);
@@ -39,17 +39,16 @@ public class SQLSuggestionTextPainter implements IPainter, PaintListener, LineBa
     private Color fontColor;
     private Color suggestionBackground;
     private RenderState currentState;
-    private final Semaphore lockObject;
     private boolean isEnabled;
     private HintContent activeHint;
     private IPositionUpdater updater;
     private boolean standaloneOperation = false;
+    private int nextLineVerticalIndentLine = -1;
 
     public SQLSuggestionTextPainter(ITextViewer viewer) {
         this.viewerComponent = viewer;
         this.currentState = RenderState.IDLE;
-        this.lockObject = new Semaphore(1);
-        this.activeHint = HintContent.initialize(0, "");
+        this.activeHint = HintContent.of(0, null);
         UIUtils.asyncExec(() -> ((ITextViewerExtension2) viewerComponent).addPainter(this));
     }
 
@@ -62,11 +61,7 @@ public class SQLSuggestionTextPainter implements IPainter, PaintListener, LineBa
     }
 
     public void removeHint() {
-        if (!tryLock()) {
-            return;
-        }
-        this.currentState = RenderState.REMOVING;
-        UIUtils.asyncExec(this::executeRemove);
+        UIUtils.runInUIThread(this::executeRemove);
     }
 
     /**
@@ -76,11 +71,7 @@ public class SQLSuggestionTextPainter implements IPainter, PaintListener, LineBa
      * @param cursorPosition the position of the cursor in editor
      */
     public void showHint(@NotNull String content, int cursorPosition) {
-        if (!tryLock()) {
-            return;
-        }
-        this.currentState = RenderState.SHOWING;
-        UIUtils.asyncExec(() -> {
+        UIUtils.runInUIThread(() -> {
             executeRemove(); // removes any currently displayed hint before showing the new one
             executeShow(content, cursorPosition);
         });
@@ -95,8 +86,11 @@ public class SQLSuggestionTextPainter implements IPainter, PaintListener, LineBa
      */
     public void enable() {
         if (!isEnabled) {
-            isEnabled = true;
             StyledText textWidget = getTextWidget();
+            if (textWidget == null || textWidget.isDisposed()) {
+                return;
+            }
+            isEnabled = true;
             textWidget.addPaintListener(this);
             textWidget.addLineBackgroundListener(this);
             viewerComponent.getDocument().addPositionCategory(HINT_CATEGORY);
@@ -121,14 +115,21 @@ public class SQLSuggestionTextPainter implements IPainter, PaintListener, LineBa
         }
         if (clearContent) {
             removeHint();
+        } else {
+            clearHintVerticalIndent();
         }
         StyledText textWidget = getTextWidget();
-        textWidget.removePaintListener(this);
-        textWidget.removeLineBackgroundListener(this);
-        viewerComponent.getDocument().removePositionUpdater(updater);
-        try {
-            viewerComponent.getDocument().removePositionCategory(HINT_CATEGORY);
-        } catch (BadPositionCategoryException ignored) {
+        if (textWidget != null && !textWidget.isDisposed()) {
+            textWidget.removePaintListener(this);
+            textWidget.removeLineBackgroundListener(this);
+        }
+        IDocument document = viewerComponent.getDocument();
+        if (document != null && updater != null) {
+            document.removePositionUpdater(updater);
+            try {
+                document.removePositionCategory(HINT_CATEGORY);
+            } catch (BadPositionCategoryException ignored) {
+            }
         }
         currentState = RenderState.IDLE;
         isEnabled = false;
@@ -140,12 +141,19 @@ public class SQLSuggestionTextPainter implements IPainter, PaintListener, LineBa
 
     @Override
     public void dispose() {
+        clearHintVerticalIndent();
         StyledText textWidget = getTextWidget();
-        textWidget.removePaintListener(this);
-        textWidget.removeLineBackgroundListener(this);
-        if (viewerComponent.getDocument() != null) {
-            viewerComponent.getDocument().removePositionUpdater(updater);
+        if (textWidget != null && !textWidget.isDisposed()) {
+            textWidget.removePaintListener(this);
+            textWidget.removeLineBackgroundListener(this);
         }
+        IDocument document = viewerComponent.getDocument();
+        if (document != null && updater != null) {
+            document.removePositionUpdater(updater);
+        }
+        activeHint = HintContent.of(0, null);
+        currentState = RenderState.IDLE;
+        isEnabled = false;
     }
 
     @Override
@@ -175,18 +183,7 @@ public class SQLSuggestionTextPainter implements IPainter, PaintListener, LineBa
                 return;
             }
 
-            switch (currentState) {
-                case SHOWING:
-                    drawHintContent(event.gc);
-                    break;
-                case REMOVING:
-                    resetState();
-                    drawHintContent(event.gc);
-                    break;
-                default:
-                    drawHintContent(event.gc);
-                    break;
-            }
+            drawHintContent(event.gc);
         } finally {
             this.repainting = false;
         }
@@ -197,11 +194,17 @@ public class SQLSuggestionTextPainter implements IPainter, PaintListener, LineBa
     }
 
     public void applyHint() {
-        if (!hasContentToShow()) {
+        StyledText textWidget = getTextWidget();
+        if (!hasContentToShow() || textWidget == null || textWidget.isDisposed()) {
             return;
         }
-        insertTextAtCursor(activeHint.getContent());
-        removeHint();
+        String content = activeHint.content();
+        int position = activeHint.position();
+        clearHintVerticalIndent();
+        activeHint = HintContent.of(position, null);
+        resetState();
+        textWidget.redraw();
+        insertTextAtCursor(content);
     }
 
     public boolean hasContentToShow() {
@@ -209,121 +212,176 @@ public class SQLSuggestionTextPainter implements IPainter, PaintListener, LineBa
     }
 
     public int getCurrentPosition() {
-        return activeHint != null ? activeHint.getPosition() : -1;
+        return activeHint != null ? activeHint.position() : -1;
     }
 
     private void drawHintContent(GC gc) {
-        configureGraphicsContext(gc);
-        int position = activeHint.getPosition();
+        StyledText textWidget = getTextWidget();
+        if (textWidget == null || textWidget.isDisposed()) {
+            resetState();
+            return;
+        }
+        configureGraphicsContext(gc, textWidget);
+        int position = activeHint.position();
         String[] textLines = activeHint.getTextLines();
         if (textLines.length > 0) {
-            TextRenderingUtils.drawFirstLine(textLines[0], gc, getTextWidget(), position, this.suggestionBackground);
-            configureGraphicsContext(gc);
+            TextRenderingUtils.drawFirstLine(textLines[0], gc, textWidget, position, this.suggestionBackground);
+            configureGraphicsContext(gc, textWidget);
             if (textLines.length > 1) {
-                TextRenderingUtils.drawNextLines(textLines[1], gc, getTextWidget(), position);
+                TextRenderingUtils.drawNextLines(activeHint.getContinuationText(), gc, textWidget, position);
             }
         }
         resetState();
     }
 
     private void executeShow(String text, int cursorPosition) {
-        String wordPrefix = extractCurrentWord();
+        StyledText textWidget = getTextWidget();
+        if (textWidget == null || textWidget.isDisposed()) {
+            resetState();
+            return;
+        }
+        String wordPrefix = extractCurrentWord(textWidget);
         String fragment = text;
         if (!wordPrefix.isEmpty() && fragment.toLowerCase().startsWith(wordPrefix.toLowerCase())) {
             fragment = fragment.substring(wordPrefix.length());
         }
-        activeHint = HintContent.initialize(cursorPosition, fragment);
-        getTextWidget().redraw();
+        activeHint = HintContent.of(cursorPosition, fragment);
+        currentState = RenderState.SHOWING;
+        updateHintVerticalIndent();
+        textWidget.redraw();
     }
 
 
     private void executeRemove() {
-        activeHint = HintContent.initialize(activeHint.getPosition(), "");
-        getTextWidget().redraw();
+        clearHintVerticalIndent();
+        activeHint = HintContent.of(activeHint == null ? 0 : activeHint.position(), null);
+        resetState();
+        StyledText textWidget = getTextWidget();
+        if (textWidget != null && !textWidget.isDisposed()) {
+            textWidget.redraw();
+        }
     }
 
     private void insertTextAtCursor(String text) {
         try {
             IDocument document = viewerComponent.getDocument();
-            int modelPosition = TextRenderingUtils.widgetOffset2ModelOffset(viewerComponent, activeHint.getPosition());
+            int modelPosition = TextRenderingUtils.widgetOffset2ModelOffset(viewerComponent, activeHint.position());
             document.replace(modelPosition, 0, text);
-            getTextWidget().setCaretOffset(activeHint.getPosition() + text.length());
+            int newModelPosition = modelPosition + text.length();
+            int newWidgetPosition = TextRenderingUtils.modelOffset2WidgetOffset(viewerComponent, newModelPosition);
+            StyledText textWidget = getTextWidget();
+            if (textWidget != null && !textWidget.isDisposed()) {
+                textWidget.setCaretOffset(Math.max(0, newWidgetPosition));
+            }
         } catch (BadLocationException e) {
             log.debug("Exception trying to insert AI suggestion", e);
         }
     }
 
-    private boolean tryLock() {
-        try {
-            return lockObject.tryAcquire(100, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException e) {
-            return false;
-        }
-    }
-
     private void resetState() {
         currentState = RenderState.IDLE;
-        if (lockObject.availablePermits() == 0) {
-            lockObject.release();
-        }
     }
 
-    private void configureGraphicsContext(GC gc) {
+    private void configureGraphicsContext(GC gc, @NotNull StyledText textWidget) {
         if (fontColor != null) {
             gc.setForeground(fontColor);
         }
-        gc.setBackground(getTextWidget().getBackground());
+        gc.setBackground(textWidget.getBackground());
     }
 
-    private int getCursorPosition() {
-        return getTextWidget().getCaretOffset();
-    }
-
-    private String extractCurrentWord() {
-        StyledText widget = getTextWidget();
-        int position = getCursorPosition();
+    private String extractCurrentWord(@NotNull StyledText widget) {
+        int position = widget.getCaretOffset();
         String lineContent = widget.getText().substring(0, position);
         int separator = Math.max(lineContent.lastIndexOf(' '), lineContent.lastIndexOf('\t'));
         return separator >= 0 ? lineContent.substring(separator + 1) : lineContent;
     }
 
+    @Nullable
     private StyledText getTextWidget() {
         return viewerComponent.getTextWidget();
     }
 
-    private static class HintContent {
-        private final int position;
-        private final String content;
-
-        private HintContent(int position, String content) {
-            this.position = position;
-            this.content = content == null ? "" : content;
+    private void updateHintVerticalIndent() {
+        clearHintVerticalIndent();
+        if (activeHint == null || activeHint.getContinuationLineCount() == 0) {
+            return;
         }
 
-        static HintContent initialize(int position, String content) {
-            return new HintContent(position, content);
+        StyledText widget = getTextWidget();
+        if (widget == null || widget.isDisposed()) {
+            return;
         }
 
-        int getPosition() {
-            return position;
+        int lineCount = widget.getLineCount();
+        if (lineCount <= 1) {
+            return;
         }
 
-        String getContent() {
-            return content;
+        int maxOffset = Math.max(0, widget.getCharCount() - 1);
+        int anchorOffset = Math.max(0, Math.min(activeHint.position(), maxOffset));
+        int anchorLine = widget.getLineAtOffset(anchorOffset);
+        int nextLine = anchorLine + 1;
+        if (nextLine >= lineCount) {
+            return;
+        }
+
+        int extraHeight = widget.getLineHeight() * activeHint.getContinuationLineCount();
+        if (extraHeight <= 0) {
+            return;
+        }
+
+        widget.setLineVerticalIndent(nextLine, extraHeight);
+        nextLineVerticalIndentLine = nextLine;
+    }
+
+    private void clearHintVerticalIndent() {
+        StyledText widget = getTextWidget();
+        if (widget == null || widget.isDisposed()) {
+            nextLineVerticalIndentLine = -1;
+            return;
+        }
+        if (nextLineVerticalIndentLine >= 0 && nextLineVerticalIndentLine < widget.getLineCount()) {
+            widget.setLineVerticalIndent(nextLineVerticalIndentLine, 0);
+        }
+        nextLineVerticalIndentLine = -1;
+    }
+
+    private record HintContent(int position, @NotNull String content) {
+
+        static HintContent of(int position, @Nullable String content) {
+            return new HintContent(position, content == null ? "" : content);
         }
 
         boolean isEmpty() {
             return content.isEmpty();
         }
 
+        @NotNull
         String[] getTextLines() {
-            return content.split("\\R", 2);
+            String[] lines = content.split("\\R", -1);
+            int size = lines.length;
+            while (size > 0 && lines[size - 1].isEmpty()) {
+                size--;
+            }
+            return size == lines.length ? lines : Arrays.copyOf(lines, size);
+        }
+
+        @NotNull
+        String getContinuationText() {
+            String[] lines = getTextLines();
+            if (lines.length <= 1) {
+                return "";
+            }
+            return String.join("\n", Arrays.copyOfRange(lines, 1, lines.length));
+        }
+
+        int getContinuationLineCount() {
+            return Math.max(0, getTextLines().length - 1);
         }
     }
 
     private enum RenderState {
         IDLE,
-        SHOWING,
-        REMOVING
+        SHOWING
     }
 }

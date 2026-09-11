@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2025 DBeaver Corp and others
+ * Copyright (C) 2010-2026 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 
 package org.jkiss.dbeaver.ui.editors.erd.internal;
 
-import org.jkiss.dbeaver.utils.NLS;
+import org.eclipse.osgi.util.NLS;
 
 public class ERDUIMessages extends NLS {
     static final String BUNDLE_NAME = "org.jkiss.dbeaver.ui.editors.erd.internal.ERDUIMessages"; //$NON-NLS-1$
@@ -30,7 +30,6 @@ public class ERDUIMessages extends NLS {
     public static String action_diagram_layout_name;
     public static String column_;
     public static String entity_diagram_;
-    public static String part_note_title;
     public static String pref_page_erd_checkbox_grid_enabled;
     public static String pref_page_erd_checkbox_snap_to_grid;
     public static String pref_page_erd_combo_page_mode;
@@ -71,6 +70,7 @@ public class ERDUIMessages extends NLS {
     public static String erd_preference_page_title_shows_partitions;
     public static String erd_preference_page_title_routing_combo;
     public static String erd_preference_page_title_notation_combo;
+    public static String erd_preference_page_title_load_lazy_descriptions;
     public static String erd_preference_page_title_color_pref;
     public static String erd_preference_page_title_change_border_colors;
     public static String erd_preference_page_title_change_header_colors;
@@ -127,8 +127,6 @@ public class ERDUIMessages extends NLS {
     public static String erd_action_diagram_toggle_persist_confirmation_title;
     public static String erd_action_diagram_toggle_persist_confirmation_description;
     public static String erd_action_diagram_toggle_hand_checkbox_text;
-
-    public static String erd_navigator_entity_diagram_name;
 
     public static String erd_entity_add_command_select_table_dialog;
 

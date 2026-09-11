@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2025 DBeaver Corp and others
+ * Copyright (C) 2010-2026 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 package org.jkiss.dbeaver.ext.db2.model;
 
 import org.jkiss.code.NotNull;
+import org.jkiss.code.Nullable;
 import org.jkiss.dbeaver.DBException;
 import org.jkiss.dbeaver.ext.db2.DB2Constants;
 import org.jkiss.dbeaver.ext.db2.editors.DB2SourceObject;
@@ -106,8 +107,9 @@ public class DB2TableCheckConstraint extends JDBCTableConstraint<DB2Table, DB2Ta
     // Columns
     // -----------------
 
+    @Nullable
     @Override
-    public List<DB2TableCheckConstraintColumn> getAttributeReferences(DBRProgressMonitor monitor) throws DBException {
+    public List<DB2TableCheckConstraintColumn> getAttributeReferences(@Nullable DBRProgressMonitor monitor) throws DBException {
         return columns;
     }
 
@@ -134,6 +136,7 @@ public class DB2TableCheckConstraint extends JDBCTableConstraint<DB2Table, DB2Ta
     public void refreshObjectState(@NotNull DBRProgressMonitor monitor) throws DBCException {
     }
 
+    @NotNull
     @Override
     public String getObjectDefinitionText(@NotNull DBRProgressMonitor monitor, @NotNull Map<String, Object> options) throws DBException {
         return SQLFormatUtils.formatSQL(getDataSource(), text);

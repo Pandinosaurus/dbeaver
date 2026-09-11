@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2024 DBeaver Corp and others
+ * Copyright (C) 2010-2026 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -55,7 +55,6 @@ import org.jkiss.dbeaver.model.runtime.DBRProgressMonitor;
 import org.jkiss.dbeaver.model.runtime.VoidProgressMonitor;
 import org.jkiss.dbeaver.runtime.DBWorkbench;
 import org.jkiss.dbeaver.ui.ActionUtils;
-import org.jkiss.dbeaver.ui.UIStyles;
 import org.jkiss.dbeaver.ui.UIUtils;
 import org.jkiss.dbeaver.ui.controls.StyledTextUtils;
 import org.jkiss.dbeaver.ui.controls.resultset.ResultSetPreferences;
@@ -94,7 +93,6 @@ public abstract class AbstractTextPanelEditor<EDITOR extends BaseTextEditor>
     
 
     private IValueController valueController;
-    private IEditorSite subSite;
     private EDITOR editor;
     private Path tempFile;
     private MessageBar messageBar;
@@ -102,7 +100,7 @@ public abstract class AbstractTextPanelEditor<EDITOR extends BaseTextEditor>
     @Override
     public StyledText createControl(IValueController valueController) {
         this.valueController = valueController;
-        this.subSite = new SubEditorSite(valueController.getValueSite());
+        IEditorSite subSite = new SubEditorSite(valueController.getValueSite());
         editor = createEditorParty(valueController);
         try {
             editor.init(subSite, StringEditorInput.EMPTY_INPUT);
@@ -128,6 +126,7 @@ public abstract class AbstractTextPanelEditor<EDITOR extends BaseTextEditor>
 
         StyledText editorControl = editor.getEditorControl();
         assert editorControl != null;
+        editorControl.setEditable(!valueController.isReadOnly());
         initEditorSettings(editorControl);
         editor.addContextMenuContributor(manager -> contributeTextEditorActions(manager, editorControl));
         messageBar = new MessageBar(cmpsBase);
@@ -294,7 +293,7 @@ public abstract class AbstractTextPanelEditor<EDITOR extends BaseTextEditor>
     }
 
     @Override
-    public <T> T getAdapter(Class<T> adapter) {
+    public <T> T getAdapter(@NotNull Class<T> adapter) {
         BaseTextEditor textEditor = getTextEditor();
         if (textEditor != null) {
             if (adapter.isAssignableFrom(textEditor.getClass())) {
@@ -329,14 +328,10 @@ public abstract class AbstractTextPanelEditor<EDITOR extends BaseTextEditor>
         if (editorControl == null) {
             return;
         }
-        if (valueController.isReadOnly()) {
-            editorControl.setBackground(UIStyles.getDefaultWidgetBackground());
-        }
         try {
 
             editorControl.setRedraw(false);
 
-            resetEditorInput();
             final DBPPreferenceStore store = valueController.getExecutionContext() != null
                 ? valueController.getExecutionContext().getDataSource().getContainer().getPreferenceStore()
                 : DBWorkbench.getPlatform().getPreferenceStore();
@@ -371,8 +366,26 @@ public abstract class AbstractTextPanelEditor<EDITOR extends BaseTextEditor>
         if (encoding == null) {
             encoding = StandardCharsets.UTF_8.name();
         }
-        final ContentEditorInput textInput = new ContentEditorInput(valueController, null, null, encoding, monitor);
+        final ContentEditorInput textInput;
         final TextViewer textViewer = editor.getTextViewer();
+        IEditorInput editorInput = editor.getEditorInput();
+        boolean inMemory = !(valueController.getValue() instanceof DBDContent);
+        if (editorInput instanceof ContentEditorInput contentEditorInput && contentEditorInput.isInMemory() == inMemory) {
+            try {
+                contentEditorInput.refreshContent(monitor, valueController, encoding);
+                editor.getDocumentProvider().resetDocument(contentEditorInput);
+            } catch (Exception e) {
+                resetEditorInput();
+                throw new DBException("Error refreshing text editor input", e);
+            }
+            if (textViewer != null && textViewer.getUndoManager() != null) {
+                textViewer.getUndoManager().reset();
+            }
+            textInput = contentEditorInput;
+        } else {
+            resetEditorInput();
+            textInput = new ContentEditorInput(valueController, null, null, encoding, monitor);
+        }
         if (textViewer != null) {
             long contentLength = textInput.getContentLength();
 
@@ -388,11 +401,15 @@ public abstract class AbstractTextPanelEditor<EDITOR extends BaseTextEditor>
                     }
                 }
                 editorControl.setWordWrap(false);
-                editor.setInput(textInput);
+                if (editor.getEditorInput() != textInput) {
+                    editor.setInput(textInput);
+                }
 
                 messageBar.hideMessage();
             } else {
-                editor.setInput(textInput);
+                if (editor.getEditorInput() != textInput) {
+                    editor.setInput(textInput);
+                }
             }
             applyEditorStyle();
         }
@@ -400,10 +417,14 @@ public abstract class AbstractTextPanelEditor<EDITOR extends BaseTextEditor>
 
     private void showLimitedContent(StyledText editorControl, @NotNull DBDContent value, int lengthInBytes) throws DBCException, IOException {
         DBDContentStorage contents = value.getContents(new VoidProgressMonitor());
+        if (contents == null) {
+            return;
+        }
         try (final InputStream stream = contents.getContentStream()) {
             byte[] displayingContentBytes = stream.readNBytes(lengthInBytes);
-            final String content = new String(displayingContentBytes);
+            final String content = new String(displayingContentBytes, StandardCharsets.UTF_8);
             if (editor != null) {
+                resetEditorInput();
                 editorControl.setWordWrap(false);
                 editor.setInput(new StringEditorInput("Limited Content ", content, true, StandardCharsets.UTF_8.name()));
                 messageBar.showMessage(NLS.bind(ResultSetMessages.panel_editor_text_content_limitation_lbl, lengthInBytes / 1000));
@@ -442,8 +463,7 @@ public abstract class AbstractTextPanelEditor<EDITOR extends BaseTextEditor>
                 monitor.subTask("Extracting text from editor");
                 editor.doSave(RuntimeUtils.getNestedMonitor(monitor));
                 final IEditorInput editorInput = editor.getEditorInput();
-                if (editorInput instanceof ContentEditorInput) {
-                    final ContentEditorInput contentEditorInput = (ContentEditorInput) editorInput;
+                if (editorInput instanceof ContentEditorInput contentEditorInput) {
                     contentEditorInput.updateContentFromFile(monitor, value);
                 }
             } catch (Exception e) {
@@ -538,8 +558,9 @@ public abstract class AbstractTextPanelEditor<EDITOR extends BaseTextEditor>
             this.setShellStyle(SWT.DIALOG_TRIM);
         }
 
+        @NotNull
         @Override
-        protected Composite createDialogArea(Composite parent) {
+        protected Composite createDialogArea(@NotNull Composite parent) {
             final Composite composite = super.createDialogArea(parent);
 
             {
@@ -558,13 +579,16 @@ public abstract class AbstractTextPanelEditor<EDITOR extends BaseTextEditor>
         }
 
         @Override
-        protected void createButtonsForButtonBar(Composite parent) {
+        protected void createButtonsForButtonBar(@NotNull Composite parent) {
             super.createButtonsForButtonBar(parent);
             updateCompletion();
         }
 
         private void updateCompletion() {
             final Button button = getButton(IDialogConstants.OK_ID);
+            if (button == null) {
+                return;
+            }
             try {
                 Charset.forName(encoding);
                 button.setEnabled(true);

@@ -1,6 +1,6 @@
 /*
  * DBeaver - Universal Database Manager
- * Copyright (C) 2010-2025 DBeaver Corp and others
+ * Copyright (C) 2010-2026 DBeaver Corp and others
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,12 +24,10 @@ import org.eclipse.swt.custom.CTabFolder;
 import org.eclipse.swt.custom.CTabItem;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
+import org.eclipse.swt.events.SelectionListener;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
-import org.eclipse.swt.widgets.Button;
-import org.eclipse.swt.widgets.Composite;
-import org.eclipse.swt.widgets.Table;
-import org.eclipse.swt.widgets.TableItem;
+import org.eclipse.swt.widgets.*;
 import org.jkiss.code.NotNull;
 import org.jkiss.dbeaver.DBException;
 import org.jkiss.dbeaver.Log;
@@ -43,10 +41,12 @@ import org.jkiss.dbeaver.model.struct.DBSEntityConstraint;
 import org.jkiss.dbeaver.model.struct.DBSEntityConstraintType;
 import org.jkiss.dbeaver.model.virtual.*;
 import org.jkiss.dbeaver.runtime.DBWorkbench;
+import org.jkiss.dbeaver.ui.ConComposite;
 import org.jkiss.dbeaver.ui.DBeaverIcons;
 import org.jkiss.dbeaver.ui.UIUtils;
 import org.jkiss.dbeaver.ui.controls.resultset.virtual.EditVirtualColumnsPage;
 import org.jkiss.dbeaver.ui.controls.resultset.virtual.EditVirtualEntityDialog;
+import org.jkiss.dbeaver.ui.css.CSSUtils;
 import org.jkiss.dbeaver.ui.editors.AbstractDatabaseObjectEditor;
 import org.jkiss.dbeaver.ui.editors.data.internal.DataEditorsMessages;
 import org.jkiss.dbeaver.ui.editors.object.struct.EditConstraintPage;
@@ -91,8 +91,9 @@ public class VirtualStructureEditor extends AbstractDatabaseObjectEditor<DBSEnti
     public RefreshResult refreshPart(Object source, boolean force) {
         new AbstractJob(DataEditorsMessages.virtual_structure_editor_abstract_job_load_entity) {
 
+            @NotNull
             @Override
-            protected IStatus run(DBRProgressMonitor monitor) {
+            protected IStatus run(@NotNull DBRProgressMonitor monitor) {
                 for (DBVEntityForeignKey fk : vEntity.getForeignKeys()) {
                     try {
                         fk.getRealReferenceConstraint(monitor);
@@ -169,11 +170,15 @@ public class VirtualStructureEditor extends AbstractDatabaseObjectEditor<DBSEnti
     }
 
     private void createEditorUI() {
-        Composite composite = new Composite(parent, SWT.NONE);
-        composite.setLayout(new GridLayout(1, true));
+        ConComposite composite = new ConComposite(parent, SWT.NONE);
+        composite.setGridLayout(1);
 
-        Composite keysComposite = UIUtils.createComposite(composite, 2);
-        ((GridLayout)keysComposite.getLayout()).makeColumnsEqualWidth = true;
+        ConComposite keysComposite = new ConComposite(composite);
+        keysComposite.setGridLayout(2);
+        GridLayout gl = (GridLayout) keysComposite.getLayout();
+        gl.makeColumnsEqualWidth = true;
+        gl.marginHeight = 1;
+        gl.marginWidth = 5;
         keysComposite.setLayoutData(new GridData(GridData.FILL_BOTH));
         createColumnsPage(keysComposite);
         createUniqueKeysPage(keysComposite);
@@ -183,7 +188,13 @@ public class VirtualStructureEditor extends AbstractDatabaseObjectEditor<DBSEnti
 //        Composite attrsComposite = UIUtils.createComposite(composite, 1);
 //        attrsComposite.setLayoutData(new GridData(GridData.FILL_BOTH));
 
-        UIUtils.createInfoLabel(composite, DataEditorsMessages.virtual_structure_editor_info_label_entity_structure, GridData.FILL_HORIZONTAL, 1);
+        Control infoLabel = UIUtils.createInfoLabel(
+            composite,
+            DataEditorsMessages.virtual_structure_editor_info_label_entity_structure,
+            GridData.FILL_HORIZONTAL,
+            1
+        );
+        CSSUtils.markConnectionTypeColor(infoLabel);
         parent.layout(true, true);
 
         DBSEntity dbObject = getDatabaseObject();
@@ -207,7 +218,8 @@ public class VirtualStructureEditor extends AbstractDatabaseObjectEditor<DBSEnti
     }
 
     private void createColumnsPage(Composite parent) {
-        Composite group = UIUtils.createComposite(parent, 1);
+        ConComposite group = new ConComposite(parent);
+        group.setGridLayout(1);
         group.setLayoutData(new GridData(GridData.FILL_BOTH));
         UIUtils.createControlLabel(group, DataEditorsMessages.virtual_structure_editor_columns_group_virtual);
 
@@ -220,7 +232,8 @@ public class VirtualStructureEditor extends AbstractDatabaseObjectEditor<DBSEnti
         if (uniqueConstraint == null) {
             return;
         }
-        Composite group = UIUtils.createComposite(parent, 1);
+        ConComposite group = new ConComposite(parent);
+        group.setGridLayout(1);
         group.setLayoutData(new GridData(GridData.FILL_BOTH));
         UIUtils.createControlLabel(group, DataEditorsMessages.virtual_structure_editor_columns_group_unique_keys);
 
@@ -233,10 +246,9 @@ public class VirtualStructureEditor extends AbstractDatabaseObjectEditor<DBSEnti
 
         {
             Composite buttonsPanel = UIUtils.createComposite(group, 3);
+            CSSUtils.markConnectionTypeColor(buttonsPanel);
             buttonsPanel.setLayoutData(new GridData(GridData.HORIZONTAL_ALIGN_BEGINNING));
-            Button btnAdd = UIUtils.createDialogButton(buttonsPanel, DataEditorsMessages.virtual_structure_editor_dialog_button_add, new SelectionAdapter() {
-                    @Override
-                    public void widgetSelected(SelectionEvent e) {
+            Button btnAdd = UIUtils.createDialogButton(buttonsPanel, DataEditorsMessages.virtual_structure_editor_dialog_button_add, SelectionListener.widgetSelectedAdapter(e -> {
                         DBVEntityConstraint newConstraint = new DBVEntityConstraint(vEntity, DBSEntityConstraintType.VIRTUAL_KEY, vEntity.getName() + "_uk");
                         EditConstraintPage editPage = new EditConstraintPage(DataEditorsMessages.virtual_structure_editor_constraint_page_edit_key, newConstraint);
                         if (editPage.edit()) {
@@ -253,12 +265,9 @@ public class VirtualStructureEditor extends AbstractDatabaseObjectEditor<DBSEnti
                                 vEntity.persistConfiguration();
                             }
                         }
-                    }
-            });
+                    }));
 
-            SelectionAdapter ukEditListener = new SelectionAdapter() {
-                @Override
-                public void widgetSelected(SelectionEvent e) {
+            SelectionListener ukEditListener = SelectionListener.widgetSelectedAdapter(e -> {
                     TableItem ukItem = ukTable.getSelection()[0];
                     DBVEntityConstraint virtualUK = (DBVEntityConstraint) ukItem.getData();
                     EditConstraintPage editPage = new EditConstraintPage(DataEditorsMessages.virtual_structure_editor_constraint_page_edit_key, virtualUK);
@@ -268,14 +277,11 @@ public class VirtualStructureEditor extends AbstractDatabaseObjectEditor<DBSEnti
                         ukItem.setText(1, getConstraintAttrNames(virtualUK));
                         vEntity.persistConfiguration();
                     }
-                }
-            };
+                });
             Button btnEdit = UIUtils.createDialogButton(buttonsPanel, DataEditorsMessages.virtual_structure_editor_dialog_button_edit, ukEditListener);
             btnEdit.setEnabled(false);
 
-            Button btnRemove = UIUtils.createDialogButton(buttonsPanel, DataEditorsMessages.virtual_structure_editor_dialog_button_remove, new SelectionAdapter() {
-                @Override
-                public void widgetSelected(SelectionEvent e) {
+            Button btnRemove = UIUtils.createDialogButton(buttonsPanel, DataEditorsMessages.virtual_structure_editor_dialog_button_remove, SelectionListener.widgetSelectedAdapter(e -> {
                     DBVEntityConstraint virtualUK = (DBVEntityConstraint) ukTable.getSelection()[0].getData();
                     if (!UIUtils.confirmAction(parent.getShell(),
                     		DataEditorsMessages.virtual_structure_editor_confirm_action_delete_key,
@@ -285,8 +291,7 @@ public class VirtualStructureEditor extends AbstractDatabaseObjectEditor<DBSEnti
                     vEntity.removeConstraint(virtualUK);
                     ukTable.remove(ukTable.getSelectionIndices());
                     vEntity.persistConfiguration();
-                }
-            });
+                }));
             btnRemove.setEnabled(false);
 
             ukTable.addSelectionListener(new SelectionAdapter() {
@@ -327,7 +332,8 @@ public class VirtualStructureEditor extends AbstractDatabaseObjectEditor<DBSEnti
     }
 
     private void createForeignKeysPage(Composite parent) {
-        Composite group = UIUtils.createComposite(parent, 1);
+        ConComposite group = new ConComposite(parent);
+        group.setGridLayout(1);
         group.setLayoutData(new GridData(GridData.FILL_BOTH));
         UIUtils.createControlLabel(group, DataEditorsMessages.virtual_structure_editor_control_group_label_foreign_key);
 
@@ -341,22 +347,18 @@ public class VirtualStructureEditor extends AbstractDatabaseObjectEditor<DBSEnti
 
         {
             Composite buttonsPanel = UIUtils.createComposite(group, 2);
+            CSSUtils.markConnectionTypeColor(buttonsPanel);
             buttonsPanel.setLayoutData(new GridData(GridData.HORIZONTAL_ALIGN_BEGINNING));
 
-            UIUtils.createDialogButton(buttonsPanel, DataEditorsMessages.virtual_structure_editor_dialog_button_add, new SelectionAdapter() {
-                @Override
-                public void widgetSelected(SelectionEvent e) {
+            UIUtils.createDialogButton(buttonsPanel, DataEditorsMessages.virtual_structure_editor_dialog_button_add, SelectionListener.widgetSelectedAdapter(e -> {
                     DBVEntityForeignKey virtualFK = EditForeignKeyPage.createVirtualForeignKey(vEntity);
                     if (virtualFK != null) {
                         createForeignKeyItem(fkTable, virtualFK, true);
                         vEntity.persistConfiguration();
                     }
-                }
-            });
+                }));
 
-            Button btnRemove = UIUtils.createDialogButton(buttonsPanel, DataEditorsMessages.virtual_structure_editor_dialog_button_remove, new SelectionAdapter() {
-                @Override
-                public void widgetSelected(SelectionEvent e) {
+            Button btnRemove = UIUtils.createDialogButton(buttonsPanel, DataEditorsMessages.virtual_structure_editor_dialog_button_remove, SelectionListener.widgetSelectedAdapter(e -> {
                     DBVEntityForeignKey virtualFK = (DBVEntityForeignKey) fkTable.getSelection()[0].getData();
                     if (!UIUtils.confirmAction(parent.getShell(),
                     		DataEditorsMessages.virtual_structure_editor_confirm_action_delete_fk,
@@ -367,21 +369,17 @@ public class VirtualStructureEditor extends AbstractDatabaseObjectEditor<DBSEnti
                     fkTable.remove(fkTable.getSelectionIndices());
                     ((Button)e.widget).setEnabled(false);
                     vEntity.persistConfiguration();
-                }
-            });
+                }));
             btnRemove.setEnabled(false);
 
-            fkTable.addSelectionListener(new SelectionAdapter() {
-                @Override
-                public void widgetSelected(SelectionEvent e) {
-                    btnRemove.setEnabled(fkTable.getSelectionIndex() >= 0);
-                }
-            });
+            fkTable.addSelectionListener(SelectionListener.widgetSelectedAdapter(e ->
+                btnRemove.setEnabled(fkTable.getSelectionIndex() >= 0)));
         }
     }
 
     private void createReferencesPage(Composite parent) {
-        Composite group = UIUtils.createComposite(parent, 1);
+        ConComposite group = new ConComposite(parent);
+        group.setGridLayout(1);
         group.setLayoutData(new GridData(GridData.FILL_BOTH));
         UIUtils.createControlLabel(group, DataEditorsMessages.virtual_structure_editor_control_group_references);
 
@@ -395,13 +393,11 @@ public class VirtualStructureEditor extends AbstractDatabaseObjectEditor<DBSEnti
 
         {
             Composite buttonsPanel = UIUtils.createComposite(group, 2);
+            CSSUtils.markConnectionTypeColor(buttonsPanel);
             buttonsPanel.setLayoutData(new GridData(GridData.HORIZONTAL_ALIGN_BEGINNING));
 
-            UIUtils.createDialogButton(buttonsPanel, DataEditorsMessages.virtual_structure_editor_dialog_button_refresh, new SelectionAdapter() {
-                @Override
-                public void widgetSelected(SelectionEvent e) {
-                }
-            }).setEnabled(false);
+            UIUtils.createDialogButton(buttonsPanel, DataEditorsMessages.virtual_structure_editor_dialog_button_refresh, SelectionListener.widgetSelectedAdapter(e -> {
+                })).setEnabled(false);
         }
     }
 
